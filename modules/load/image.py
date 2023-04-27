@@ -35,14 +35,14 @@ def load_from_path(path):
     '''
     Loads image data from a binary file and returns an image class object.
     '''
-    return image(path)
+    return Image(path)
 
 
 # ---------------------------------------------------------------------#
 # ----------------------- IMAGE DATA CLASS ----------------------------#
 # ---------------------------------------------------------------------#
 
-class image():
+class Image():
     '''
     This class loads image data from a binary file and provides methods
     for accessing the image data and header information.

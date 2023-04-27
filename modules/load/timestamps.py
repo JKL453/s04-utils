@@ -32,14 +32,14 @@ def load_from_path(path):
     '''
     Loads image data from a binary file and returns an image class object.
     '''
-    return timestamps(path)
+    return Timestamps(path)
 
 
 # ---------------------------------------------------------------------#
 # -------------------- TIMESTAMPS DATA CLASS --------------------------#
 # ---------------------------------------------------------------------#
 
-class timestamps():
+class Timestamps():
     """
     Class for loading and processing timestamps data.
     """
