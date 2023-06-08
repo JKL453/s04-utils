@@ -57,7 +57,7 @@ class Timestamps():
         self.detectors_raw = self.get_h5_dataset('photon_data0', 'detectors')
         self.detector_count, self.detector_number = self.get_detector_count()
 
-        self.data = self.get_timestamps_series()
+        self.data = self.get_timestamps_data()
         
         # initialize metadata, like number of 
         # - time stamps
@@ -132,7 +132,7 @@ class Timestamps():
             print()
 
 
-    def get_timestamps_series(self):
+    def get_timestamps_data(self):
         """
         Return the timestamps data as Pandas Series.
         """
@@ -200,7 +200,7 @@ class Timestamps():
     
     # Define the time-to-seconds conversion function
     def seconds_formatter(self, x, pos):
-        return f"{x*1e-9:.0f}"  # Convert time to seconds and format as string
+        return f"{x*5e-9:.0f}"  # Convert time to seconds and format as string
     
     def preview(self, bin_width=0.01):
         """
@@ -211,8 +211,11 @@ class Timestamps():
 
         #timestamps = self.data['detector0'].to_numpy()
         timetrace_len = timestamps0[-1]
-        timetrace_len_in_s = timetrace_len * 1e-9
+        timetrace_len_in_s = timetrace_len * 5e-9
+        print(timetrace_len_in_s)
+        print(timetrace_len)
         n_bins = timetrace_len_in_s/bin_width
+        print(n_bins)
 
         _, ax = plt.subplots(figsize=(8, 2))
 
@@ -236,7 +239,7 @@ class Timestamps():
         #plt.xlim(0)
         plt.ylim(0)
         preview.set(xlabel='time (s)', 
-                    ylabel='counts per ' + str(int(bin_width*1e4)) + ' ms',
+                    ylabel='counts per ' + str(int(bin_width*1e3)) + ' ms',
                     title=str(self.file_name))
 
         # Set x-axis labels to seconds using FuncFormatter
@@ -257,7 +260,7 @@ class Timestamps():
 
 
         timetrace_len = timestamps0[-1]
-        timetrace_len_in_s = timetrace_len * 1e-9
+        timetrace_len_in_s = timetrace_len * 5e-9
 
         n_bins = timetrace_len_in_s/bin_width
         bins = int(np.floor(n_bins))
@@ -267,16 +270,38 @@ class Timestamps():
 
 
         p = figure(width=1000, height=250, title='Photon count histogram')
-        p.line(bins0*1e-9, np.append(counts0, 5), line_color='#517BA1')
-        p.line(bins1*1e-9, np.append(counts1, 5), line_color='#CA4B43')
+        p.line(bins0*5e-9, np.append(counts0, 5), line_color='#517BA1')
+        p.line(bins1*5e-9, np.append(counts1, 5), line_color='#CA4B43')
 
         p.xaxis.axis_label = 'time (s)'
-        p.yaxis.axis_label = 'counts per ' + str(int(bin_width*1e4)) + ' ms'
+        p.yaxis.axis_label = 'counts per ' + str(int(bin_width*1e3)) + ' ms'
         p.title = str(self.file_name)
 
         p.xaxis.major_label_orientation = "horizontal"  # Set the orientation of the tick labels
 
         show(p)
 
-    
-    
+    def get_timetrace_data(self, bin_width=0.01) -> dict:
+        """
+        Return the timetrace data of both detectors as a dictionary of numpy arrays.
+        """
+
+        # Get timestamps data
+        timestamps0 = self.data['detector0'].to_numpy()
+        timestamps1 = self.data['detector1'].to_numpy()
+        
+        # Get timetrace length in seconds
+        timetrace_len = timestamps0[-1]
+        timetrace_len_in_s = timetrace_len * 5e-9
+
+        # Calculate number of bins
+        n_bins = timetrace_len_in_s/bin_width
+        bins = int(np.floor(n_bins))
+
+        # Calculate counts per bin
+        counts0, bins0 = np.histogram(timestamps0, bins=bins)
+        bins0 = bins0[0:-1]
+        counts1, bins1 = np.histogram(timestamps1, bins=bins)
+        bins1 = bins1[0:-1]
+
+        return {'detector0': [counts0, bins0], 'detector1': [counts1, bins1]}
