@@ -25,7 +25,7 @@ import matplotlib as mpl
 import seaborn as sns
 import pandas as pd
 import pprint
-from IPython.display import set_matplotlib_formats
+from IPython.core.display import set_matplotlib_formats
 from bokeh.plotting import figure, show
 from bokeh.models import LinearColorMapper, ColorBar
 from bokeh.colors import RGB
@@ -53,6 +53,7 @@ class Image():
         Initialize the image class object.
         '''
         self.path = path
+        self.file_name = self.path.split('/')[-1]
         self.header_size = 48
         self.bin_file = self.open_bin_file()
         self.bin_header = self.get_bin_header()

@@ -19,10 +19,9 @@ Classes:
 # import statements
 
 import os
-import shutil
-import glob
+import numpy as np
 from fpdf import FPDF
-from modules.load import timestamps
+from modules.load import timestamps, image
 from modules.visualize import plot
 
 from tqdm import tqdm
@@ -37,7 +36,7 @@ from PIL import Image
 
 PLOT_DIR = 'plots'
 
-def create(path_to_data_dir):
+def create(path_to_data_dir, plot_type='timetrace'):
     """
     Creates a report for the data in the specified directory.
     """
@@ -45,15 +44,33 @@ def create(path_to_data_dir):
     # Get path to data directory
     data_dir = os.path.dirname(path_to_data_dir)
 
+    # Create the plots directory
+    try:
+        # Create the directory
+        os.mkdir(f'{data_dir}/{PLOT_DIR}')
+    except FileExistsError:
+        # If directory already exists
+        print('Directory already exists.')
+        # Check if Overview.pdf already exists
+        if os.path.exists(os.path.join(data_dir, 'Overview.pdf')):
+            print('PDF report already exists.')
+            # Stop execution
+            return
+        else:
+            # Create the PDF
+            create_pdf(f'{data_dir}/{PLOT_DIR}', plot_type=plot_type)
+            # Stop execution
+            return
+    
     # Create the plots
-    create_plots(path_to_data_dir)
+    create_plots(path_to_data_dir, plot_type=plot_type)
 
     # Create the PDF
-    create_pdf(f'{data_dir}/{PLOT_DIR}')
+    create_pdf(f'{data_dir}/{PLOT_DIR}', plot_type=plot_type)
 
 
 
-def create_plots(path):
+def create_plots(path, plot_type='timetrace'):
     """
     Creates the directory /plots in the current data directory 
     specified by path.
@@ -67,29 +84,33 @@ def create_plots(path):
     # Get a list of all files in the directory
     files = os.listdir(data_dir)
 
-    # Create the plots directory
-    try:
-        os.mkdir(f'{data_dir}/{PLOT_DIR}')
-    except FileExistsError:
-        print('Directory already exists.')
-        # Stop execution
-        return
-    
-    # Iterate over the files
-    for filename in tqdm(files, desc='Creating plots'):
-        # Check if the file is a data file
-        if filename.endswith(".h5"):
-            # Create a timestamps object
-            timestamps_object = timestamps.load_from_path(f'{data_dir}/{filename}')
-            # Save visualization
-            plot.timetrace(timestamps_object, bin_width=0.01, save_path=(f'{data_dir}/{PLOT_DIR}'))
+    if plot_type == 'timetrace':
+        # Iterate over the files
+        for filename in tqdm(files, desc='Creating plots'):
+            # Check if the file is a data file
+            if filename.endswith(".h5"):
+                # Create a timestamps object
+                timestamps_object = timestamps.load_from_path(f'{data_dir}/{filename}')
+                # Save visualization
+                plot.timetrace(timestamps_object, bin_width=0.01, save_path=(f'{data_dir}/{PLOT_DIR}'))
+                # clean up
+                del timestamps_object
 
-            # clean up
-            del timestamps_object
+    elif plot_type == 'image':
+        # Iterate over the files
+        for filename in tqdm(files, desc='Creating plots'):
+            # Check if the file is a data file
+            if filename.endswith(".img"):
+                # Create a image object
+                image_object = image.load_from_path(f'{data_dir}/{filename}')
+                # Save visualization
+                plot.image(image_object, save_path=(f'{data_dir}/{PLOT_DIR}'))
+                # clean up
+                del image_object
 
 
 
-def create_pdf(images_path, images_per_row=1, images_per_column=6):
+def create_pdf(images_path, plot_type='timetrace'):
     """
     Creates a PDF document from the images in the specified directory.
     The images are arranged in a grid with the specified number of rows and columns.
@@ -107,9 +128,27 @@ def create_pdf(images_path, images_per_row=1, images_per_column=6):
     # Get the page size
     page_width, page_height = A4
 
-    # Calculate the size of each image and the spacing between images
+    # Set default values for the number of rows and columns
+    images_per_column = 6
+    images_per_row = 1
     image_width = 400 #page_width / images_per_row
     image_height = 100 #page_height / images_per_column
+    
+
+    if plot_type == 'timetrace':
+        # Calculate the size of each image and the spacing between images
+        images_per_column = 6
+        images_per_row = 1
+        image_width = 400 #page_width / images_per_row
+        image_height = 100 #page_height / images_per_column
+    
+    if plot_type == 'image':
+        # Calculate the size of each image and the spacing between images
+        images_per_column = 4
+        images_per_row = 2
+        image_width = 270 #page_width / images_per_row
+        image_height = 200 #page_height / images_per_column
+
     spacing_x = (page_width - image_width * images_per_row) / (images_per_row + 1)
     spacing_y = (page_height - image_height * images_per_column) / (images_per_column + 1)
 
@@ -117,12 +156,14 @@ def create_pdf(images_path, images_per_row=1, images_per_column=6):
     row = 0
     col = 0
     
+    import numpy as np
+
     # Get a list of image filenames sorted by file number
     image_filenames = sorted(os.listdir(images_path), key=lambda x: int(x.split('_')[-1].split('.')[0]))
 
     # Split the list of image filenames into sublists for each page
     pages = [image_filenames[i:i+images_per_row*images_per_column] for i in range(0, len(image_filenames), images_per_row*images_per_column)]
-
+    
     # Iterate over the pages
     rows = []
     for page in pages:
