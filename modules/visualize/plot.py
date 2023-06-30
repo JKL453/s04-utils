@@ -111,11 +111,11 @@ def image(image_object, cmap="hot", size="normal", title=True, save_path=None):
         # create image plot with chosen colormap
         if size == 'large':
             fig, ax = plt.subplots(figsize=(10, 10))
-            im = ax.imshow(img_preview, cmap=cmap)
+            im = ax.imshow(img_preview, cmap=cmap, vmin=5)
             fig.colorbar(im, fraction=0.03, pad=0.04, label=label)
         else:
             fig, ax = plt.subplots()
-            im = ax.imshow(img_preview, cmap=cmap)
+            im = ax.imshow(img_preview, cmap=cmap, vmin=5)
             cbar = fig.colorbar(im, label=label)
         
         # set major tick options
