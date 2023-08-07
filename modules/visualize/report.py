@@ -19,12 +19,15 @@ Classes:
 # import statements
 
 import os
+import glob
+import shutil
 import numpy as np
 from fpdf import FPDF
 from modules.load import timestamps, image
 from modules.visualize import plot
 
 from tqdm import tqdm
+from ipyfilechooser import FileChooser
 
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -156,7 +159,6 @@ def create_pdf(images_path, plot_type='timetrace'):
     row = 0
     col = 0
     
-    import numpy as np
 
     # Get a list of image filenames sorted by file number
     image_filenames = sorted(os.listdir(images_path), key=lambda x: int(x.split('_')[-1].split('.')[0]))
@@ -213,3 +215,70 @@ def create_pdf(images_path, plot_type='timetrace'):
     # Save the PDF document
     pdf.save()
     print('PDF report created.')
+
+
+
+def sort_files(selected_path):
+    """
+    Sorts files in the specified directory into the "timestamps" and "images" directories.
+    """
+
+    # Replace fc.selected_path with the path to check
+    path = selected_path
+
+    # Check if there are any files with extensions ".h5" or ".img" in the path
+    if not any(file.endswith((".h5", ".img")) for file in os.listdir(path)):
+        print("No files with extensions '.h5' or '.img' found in the specified path")
+    else:
+        # Check if "timestamps" and "images" directories exist
+        timestamps_path = os.path.join(path, "timestamps")
+        images_path = os.path.join(path, "images")
+
+        if os.path.isdir(timestamps_path) and os.path.isdir(images_path):
+            # If both directories exist:
+            print("Directories 'timestamps' and 'images' already exist")
+        elif os.path.isdir(timestamps_path):
+            # If only "timestamps" directory exists: create "images" directory
+            os.mkdir(images_path)
+            print("Missing 'images' directory has been created")
+        elif os.path.isdir(images_path):
+            # If only "images" directory exists: create "timestamps" directory
+            os.mkdir(timestamps_path)
+            print("Missing 'timestamps' directory has been created")
+        else:
+            # If both directories do not exist: create both directories
+            os.mkdir(timestamps_path)
+            os.mkdir(images_path)
+            print("Missing 'timestamps' and 'images' directories have been created")
+
+        # Search for files with extensions ".h5" and ".img"
+        h5_files = glob.glob(os.path.join(path, "*.h5"))
+        img_files = glob.glob(os.path.join(path, "*.img"))
+
+        # Print the list of files found
+        print("\n")
+        print("H5 files:")
+        # Print file names without the path
+        for file in h5_files:
+            print(os.path.basename(file))
+        print("\n")
+        print("IMG files:")
+        for file in img_files:
+            print(os.path.basename(file))
+        
+        print("\n")
+
+        # Move all files with extensions ".h5" and ".img" from the source directories to the destination directory
+        for file in os.listdir(path):
+            if file.endswith(".h5"):
+                shutil.move(os.path.join(path, file), os.path.join(timestamps_path, file))
+            elif file.endswith(".img"):
+                shutil.move(os.path.join(path, file), os.path.join(images_path, file))
+            else:
+                if os.path.isfile(os.path.join(path, file)):
+                    print("Warning: File with invalid extension found: " + file)
+                else:
+                    pass
+                
+        # Print a message indicating that the files have been moved
+        print("Files have been moved to the destination directory")
