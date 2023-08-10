@@ -8,11 +8,10 @@ filtering and processing timestampss, and performing basic statistical
 analysis on timestamps data.
 
 Functions:
-- load_timetrace: Load timestamps data from a H5 file and return as a
-    timestamps class object.
+- ...
 
 Classes:
-- timestamps: Class for loading and processing timestamps data.
+- ...
 
 """
 
@@ -47,6 +46,15 @@ def create(path_to_data_dir, plot_type='timetrace'):
     # Get path to data directory
     data_dir = os.path.dirname(path_to_data_dir)
 
+    # Join the path with an empty string to add a trailing slash if necessary
+    path_with_slash = os.path.join(path_to_data_dir, '')
+
+    # Check if the resulting path already has a trailing slash
+    if path_with_slash[-1] != os.path.sep:
+        # If not, add a trailing slash
+        path_with_slash += os.path.sep
+        data_dir = path_with_slash
+
     # Create the plots directory
     try:
         # Create the directory
@@ -64,7 +72,7 @@ def create(path_to_data_dir, plot_type='timetrace'):
             create_pdf(f'{data_dir}/{PLOT_DIR}', plot_type=plot_type)
             # Stop execution
             return
-    
+
     # Create the plots
     create_plots(path_to_data_dir, plot_type=plot_type)
 
@@ -226,9 +234,18 @@ def sort_files(selected_path):
     # Replace fc.selected_path with the path to check
     path = selected_path
 
-    # Check if there are any files with extensions ".h5" or ".img" in the path
-    if not any(file.endswith((".h5", ".img")) for file in os.listdir(path)):
-        print("No files with extensions '.h5' or '.img' found in the specified path")
+    # Check if "timestamps" and "images" directories exist
+    timestamps_path = os.path.join(path, "timestamps")
+    images_path = os.path.join(path, "images")
+
+    if os.path.isdir(timestamps_path) and os.path.isdir(images_path):
+        # If both directories exist:
+        if len(os.listdir(timestamps_path)) > 0 or len(os.listdir(images_path)) > 0:
+            # If both directories contain files:
+            print("Files are already sorted")
+        else:
+            # If both directories are empty:
+            print("Directories 'timestamps' and 'images' already exist but are empty")
     else:
         # Check if "timestamps" and "images" directories exist
         timestamps_path = os.path.join(path, "timestamps")
@@ -254,31 +271,46 @@ def sort_files(selected_path):
         # Search for files with extensions ".h5" and ".img"
         h5_files = glob.glob(os.path.join(path, "*.h5"))
         img_files = glob.glob(os.path.join(path, "*.img"))
-
-        # Print the list of files found
-        print("\n")
-        print("H5 files:")
-        # Print file names without the path
-        for file in h5_files:
-            print(os.path.basename(file))
-        print("\n")
-        print("IMG files:")
-        for file in img_files:
-            print(os.path.basename(file))
         
-        print("\n")
+        # Check if any files were found
+        if len(h5_files) == 0 and len(img_files) == 0:
+            print("No '.h5' or '.img' files found in directory")
+        else:
+            print("Found " + str(len(h5_files)) + " '.h5' files")
+            print("Found " + str(len(img_files)) + " '.img' files")
+            # Print the list of files found
+            print("\n")
+            print("H5 files:")
+            # Print file names without the path
+            for file in h5_files:
+                print(os.path.basename(file))
+            print("\n")
+            print("IMG files:")
+            for file in img_files:
+                print(os.path.basename(file))
 
-        # Move all files with extensions ".h5" and ".img" from the source directories to the destination directory
-        for file in os.listdir(path):
-            if file.endswith(".h5"):
-                shutil.move(os.path.join(path, file), os.path.join(timestamps_path, file))
-            elif file.endswith(".img"):
-                shutil.move(os.path.join(path, file), os.path.join(images_path, file))
-            else:
-                if os.path.isfile(os.path.join(path, file)):
-                    print("Warning: File with invalid extension found: " + file)
+            print("\n")
+
+            # Move all files with extensions ".h5" and ".img" from the source directories to the destination directory
+            for file in os.listdir(path):
+                if file.endswith(".h5"):
+                    shutil.move(os.path.join(path, file), os.path.join(timestamps_path, file))
+                elif file.endswith(".img"):
+                    shutil.move(os.path.join(path, file), os.path.join(images_path, file))
                 else:
-                    pass
-                
-        # Print a message indicating that the files have been moved
-        print("Files have been moved to the destination directory")
+                    if os.path.isfile(os.path.join(path, file)):
+                        print("Warning: File with invalid extension found: " + file)
+                    else:
+                        pass
+                    
+            # Print a message indicating that the files have been moved
+            print("Files have been moved to the destination directory")
+
+    # Add a trailing slash to the end of both paths if there is none
+    if not timestamps_path.endswith(os.path.sep):
+        timestamps_path += os.path.sep
+    if not images_path.endswith(os.path.sep):
+        images_path += os.path.sep
+
+    # Return the paths to the "timestamps" and "images" directories as a tuple
+    return timestamps_path, images_path
