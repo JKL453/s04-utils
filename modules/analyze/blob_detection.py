@@ -183,7 +183,7 @@ class BlobDetector:
             blobs = self.detect_blobs(min_sigma=min_sigma, max_sigma=max_sigma, num_sigma=num_sigma, threshold=threshold)
         fig, ax = plt.subplots(1, 1, figsize=(18, 6), sharex=True, sharey=True)
         ax.set_title('Laplacian of Gaussian')
-        ax.imshow(self.image, cmap='hot', vmin=6)
+        ax.imshow(self.image, cmap='hot', vmin=0)
         for blob in blobs:
             y, x, r = blob
             c = Circle((x, y), 1.4*r, color='lime', linewidth=2, fill=False)
