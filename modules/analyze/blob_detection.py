@@ -175,19 +175,20 @@ class BlobDetector:
         plt.tight_layout()
         plt.show()
 
-    def plot_blobs(self, blobs=None, min_sigma=3, max_sigma=4, num_sigma=10, threshold=0.01):
+    def plot_blobs(self, blobs=None, min_sigma=3, max_sigma=4, num_sigma=10, threshold=0.01, vmin=0, figsize=(6,4)):
         """
         Plot blobs on image.
         """
         if blobs is None:
             blobs = self.detect_blobs(min_sigma=min_sigma, max_sigma=max_sigma, num_sigma=num_sigma, threshold=threshold)
-        fig, ax = plt.subplots(1, 1, figsize=(18, 6), sharex=True, sharey=True)
+        fig, ax = plt.subplots(1, 1, figsize=figsize, sharex=True, sharey=True)
         ax.set_title('Laplacian of Gaussian')
-        ax.imshow(self.image, cmap='hot', vmin=0)
+        im = ax.imshow(self.image, cmap='hot', vmin=vmin)
         for blob in blobs:
             y, x, r = blob
             c = Circle((x, y), 1.4*r, color='lime', linewidth=2, fill=False)
             ax.add_patch(c)
         ax.set_axis_off()
+        fig.colorbar(im, ax=ax, pad=0.01)
         plt.tight_layout()
         plt.show()
