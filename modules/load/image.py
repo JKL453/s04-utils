@@ -170,7 +170,7 @@ class Image():
         return img_data_arrays_transformed
     
   
-    def preview(self, cmap='hot', size='normal', title=True):
+    def preview(self, cmap='hot', size='normal', title=True, vmin=0):
         '''
         Uses imshow() to display a preview of the loaded image file. 
         Always uses the 'preview' dataset from get_image_data().
@@ -185,11 +185,11 @@ class Image():
         # create image plot with chosen colormap
         if size == 'large':
             fig, ax = plt.subplots(figsize=(10, 10))
-            im = ax.imshow(img_preview, cmap=cmap)
+            im = ax.imshow(img_preview, cmap=cmap, vmin=vmin)
             fig.colorbar(im, fraction=0.03, pad=0.04, label=label)
         else:
             fig, ax = plt.subplots()
-            im = ax.imshow(img_preview, cmap=cmap)
+            im = ax.imshow(img_preview, cmap=cmap, vmin=vmin)
             cbar = fig.colorbar(im, label=label)
         
         # set major tick options
