@@ -22,8 +22,8 @@ import glob
 import shutil
 import numpy as np
 from fpdf import FPDF
-from modules.load import timestamps, image
-from modules.visualize import plot
+from s04utils.modules.load import timestamps, image
+from s04utils.modules.visualize import plot
 
 from tqdm import tqdm
 from ipyfilechooser import FileChooser

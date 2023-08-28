@@ -24,7 +24,7 @@ from math import sqrt
 from PIL import Image
 
 # Import modules
-from modules.load import image
+from s04utils.modules.load import image
 
 
 
