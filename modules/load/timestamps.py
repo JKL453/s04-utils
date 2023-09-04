@@ -66,20 +66,6 @@ class Timestamps():
         # - comment string
         # - timestamps
         # - all h5 groups need to be read
-
-
-    def __str__(self):
-        """
-        Print the metadata of the timestamps data.
-        """
-        return "This is a timestamps data object."
-    
-    
-    def __repr__(self):
-        """
-        Print the metadata of the timestamps data.
-        """
-        return "This is a timestamps data object."
     
     
     def __len__(self):
@@ -101,11 +87,11 @@ class Timestamps():
         return list(h5_groups)
     
     
-    def get_h5_group(self, group_name):
-        """
-        Return a h5 group from the timestamps data.
-        """
-        return self.h5_content[group_name]
+    #def get_h5_group(self, group_name):
+    #    """
+    #    Return a h5 group from the timestamps data.
+    #    """
+    #    return self.h5_content[group_name]
     
     
     def get_h5_dataset_list(self, group_name):
