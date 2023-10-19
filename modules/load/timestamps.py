@@ -1,5 +1,5 @@
 """
-timestamps.py - Module for loading and processing timestamps data
+Timestamps.py - Module for loading and processing timestamps data
 
 This module provides functions for loading and processing timestamps 
 data from various sources.
@@ -126,25 +126,25 @@ class Timestamps():
         sorted_timestamps = self.sort_timestamps(self.timestamps_raw, self.detectors_raw)
 
         # create series with timestamps of detector 0
-        timestamps0 = pd.Series(sorted_timestamps['timestamps0'])
-        timestamps0.name = 'timestamps0'
+        timestamps_0 = pd.Series(sorted_timestamps['timestamps_0'])
+        timestamps_0.name = 'timestamps_0'
 
         # create series with timestamps of detector 1
-        timestamps1 = pd.Series(sorted_timestamps['timestamps1'])
-        timestamps1.name = 'timestamps1'
+        timestamps_1 = pd.Series(sorted_timestamps['timestamps_1'])
+        timestamps_1.name = 'timestamps_1'
 
         # drop NaN values and cast to int64
-        timestamps0 = timestamps0.dropna().astype('int64')
-        timestamps1 = timestamps1.dropna().astype('int64')
+        timestamps_0 = timestamps_0.dropna().astype('int64')
+        timestamps_1 = timestamps_1.dropna().astype('int64')
         
         # create dictionary with timestamps series from both detectors
-        timestaps_series_dict = {'detector0': timestamps0, 'detector1': timestamps1}
+        timestaps_series_dict = {'detector_0': timestamps_0, 'detector_1': timestamps_1}
 
         # check if timestamps series contain data and if not, delete it
-        #if timestaps_series_dict['detector0'].empty:
-        #    del timestaps_series_dict['detector0']
-        #elif timestaps_series_dict['detector1'].empty:
-        #    del timestaps_series_dict['detector1']
+        #if timestaps_series_dict['detector_0'].empty:
+        #    del timestaps_series_dict['detector_0']
+        #elif timestaps_series_dict['detector_1'].empty:
+        #    del timestaps_series_dict['detector_1']
 
         return timestaps_series_dict
     
@@ -160,16 +160,16 @@ class Timestamps():
         df = pd.DataFrame({'timestamps': h5_array_timestamps, 'detectors': h5_array_detectors})
 
         # sort timestamps by detector
-        timestamps_detector0 = df.replace(1, np.nan).dropna()['timestamps']
-        timestamps_detector1 = df.replace(0, np.nan).dropna()['timestamps']
+        timestamps_detector_0 = df.replace(1, np.nan).dropna()['timestamps']
+        timestamps_detector_1 = df.replace(0, np.nan).dropna()['timestamps']
         
         # reset index
-        timestamps_detector0 = timestamps_detector0.reset_index(drop=True)
-        timestamps_detector1 = timestamps_detector1.reset_index(drop=True)
+        timestamps_detector_0 = timestamps_detector_0.reset_index(drop=True)
+        timestamps_detector_1 = timestamps_detector_1.reset_index(drop=True)
 
         # create dataframe with sorted timestamps
-        h5_data_sorted = pd.DataFrame({'timestamps0': timestamps_detector0, 
-                                       'timestamps1': timestamps_detector1})
+        h5_data_sorted = pd.DataFrame({'timestamps_0': timestamps_detector_0, 
+                                       'timestamps_1': timestamps_detector_1})
        
         return  h5_data_sorted
     
@@ -192,11 +192,11 @@ class Timestamps():
         """
         Plot a preview of the timestamps data.
         """
-        timestamps0 = self.data['detector0'].to_numpy()
-        timestamps1 = self.data['detector1'].to_numpy()
+        timestamps_0 = self.data['detector_0'].to_numpy()
+        timestamps_1 = self.data['detector_1'].to_numpy()
 
-        #timestamps = self.data['detector0'].to_numpy()
-        timetrace_len = timestamps0[-1]
+        #timestamps = self.data['detector_0'].to_numpy()
+        timetrace_len = timestamps_0[-1]
         timetrace_len_in_s = timetrace_len * 5e-9
         print(timetrace_len_in_s)
         print(timetrace_len)
@@ -205,7 +205,7 @@ class Timestamps():
 
         _, ax = plt.subplots(figsize=(8, 2))
 
-        preview = sns.histplot(timestamps0, 
+        preview = sns.histplot(timestamps_0, 
                                element="poly", 
                                fill=False, 
                                bins=int(np.floor(n_bins)), 
@@ -213,7 +213,7 @@ class Timestamps():
                                linewidth=1,
                                color='#517BA1')
         
-        sns.histplot(timestamps1, 
+        sns.histplot(timestamps_1, 
                                element="poly", 
                                fill=False, 
                                bins=int(np.floor(n_bins)), 
@@ -241,18 +241,18 @@ class Timestamps():
         '''
         Displays an interactive Bokeh image plot for exploratory data analysis.
         '''
-        timestamps0 = self.data['detector0'].to_numpy()
-        timestamps1 = self.data['detector1'].to_numpy()
+        timestamps_0 = self.data['detector_0'].to_numpy()
+        timestamps_1 = self.data['detector_1'].to_numpy()
 
 
-        timetrace_len = timestamps0[-1]
+        timetrace_len = timestamps_0[-1]
         timetrace_len_in_s = timetrace_len * 5e-9
 
         n_bins = timetrace_len_in_s/bin_width
         bins = int(np.floor(n_bins))
         
-        counts0, bins0 = np.histogram(timestamps0, bins=bins)
-        counts1, bins1 = np.histogram(timestamps1, bins=bins)    
+        counts0, bins0 = np.histogram(timestamps_0, bins=bins)
+        counts1, bins1 = np.histogram(timestamps_1, bins=bins)    
 
 
         p = figure(width=1000, height=250, title='Photon count histogram')
@@ -266,28 +266,3 @@ class Timestamps():
         p.xaxis.major_label_orientation = "horizontal"  # Set the orientation of the tick labels
 
         show(p)
-
-    def get_timetrace_data(self, bin_width=0.01) -> dict:
-        """
-        Return the timetrace data of both detectors as a dictionary of numpy arrays.
-        """
-
-        # Get timestamps data
-        timestamps0 = self.data['detector0'].to_numpy()
-        timestamps1 = self.data['detector1'].to_numpy()
-        
-        # Get timetrace length in seconds
-        timetrace_len = timestamps0[-1]
-        timetrace_len_in_s = timetrace_len * 5e-9
-
-        # Calculate number of bins
-        n_bins = timetrace_len_in_s/bin_width
-        bins = int(np.floor(n_bins))
-
-        # Calculate counts per bin
-        counts0, bins0 = np.histogram(timestamps0, bins=bins)
-        bins0 = bins0[0:-1]
-        counts1, bins1 = np.histogram(timestamps1, bins=bins)
-        bins1 = bins1[0:-1]
-
-        return {'detector0': [counts0, bins0], 'detector1': [counts1, bins1]}
