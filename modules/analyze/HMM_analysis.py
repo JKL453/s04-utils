@@ -31,7 +31,7 @@ from s04utils.modules.load.Timestamps import Timestamps
 from s04utils.modules.load.BinnedTimestamps import BinnedTimestamps
     
 
-def correct_baseline(binned_timtrace):
+def fit_baseline(binned_timtrace):
     '''
     '''
 
@@ -51,7 +51,7 @@ def correct_baseline(binned_timtrace):
 
 
 
-def substract_baseline(binned_timtrace, baseline):
+def correct_baseline(binned_timtrace, baseline):
     '''
     '''
 
@@ -202,6 +202,137 @@ def find_last_step(binned_timestamps:BinnedTimestamps) -> float:
     return last_value_change+CUT_OFFSET
 
 
+def find_last_steps(binned_timestamps:BinnedTimestamps) -> dict:
+    '''
+    Returns the x value of the last step for detector_0, detector_1
+    and detector_sum in binned timestamps.
+    '''
 
+    # Initialize dictionary
+    last_steps = {}
+    viterbi_steps = {}
+
+    # Iterate over detectors in binned timestamps
+    for detector in binned_timestamps.as_dataframe.columns:
+
+        # Get binned timestamps data
+        detector_data = binned_timestamps.as_dataframe[detector]
+
+        # Fit the model
+        sf = sfHMM1(detector_data, krange=(2, 2), model='p').run_all(plot=True)
+
+        # Get the viterbi path
+        steps_viterbi = sf.viterbi
+
+        # Get unique values
+        unique, counts = np.unique(steps_viterbi, return_counts=True)
+
+        # Get high and low state
+        high_state = unique[1]
+        low_state = unique[0]
+
+        # Assign 0 and 1 to the states in viterbi path
+        steps = steps_viterbi.copy()
+        steps[steps_viterbi == high_state] = 1
+        steps[steps_viterbi == low_state] = 0
+
+        # Find indices where the state changes
+        value_change = np.where(np.diff(steps))[0]
+
+        # Get last value change
+        last_value_change = value_change[-1]
+
+        # Set cutoff value
+        CUT_OFFSET = find_cutoffset_single(steps_viterbi[0:last_value_change])
+        print('CUT_OFFSET: ' +str(CUT_OFFSET))
+
+        # Add last value change to dictionary
+        last_steps[detector] = last_value_change+CUT_OFFSET
+
+        # Add viterbi steps to dictionary
+        viterbi_steps[detector] = steps_viterbi[0:last_value_change+CUT_OFFSET]
+
+    return last_steps, viterbi_steps
+
+
+def find_cutoffset(viterbi_steps:dict) -> dict:
+    '''
+    Returns the number of data points to add to cut off position after bleaching.
+    '''
     
+    # Initialize dictionary
+    cutoffsets = {}
+
+    # Iterate over detectors in binned timestamps
+    for detector in viterbi_steps.keys():
+
+        # Count number of data points in each state
+        unique, counts = np.unique(viterbi_steps[detector], return_counts=True)
+
+        print('Detector: ' + str(detector))
+        print('Unique: ' + str(unique))
+        print('Counts: ' + str(counts))
+
+        # Get high and low state
+        high_state = unique[1]
+        low_state = unique[0]
+
+        # Assign 0 and 1 to the states in viterbi path
+        steps = viterbi_steps[detector].copy()
+        steps[viterbi_steps[detector] == high_state] = 1
+        steps[viterbi_steps[detector] == low_state] = 0
+
+        # Count number of data points in each state
+        unique, counts = np.unique(steps, return_counts=True)
+
+        print('')
+        print('Detector: ' + str(detector))
+        print('Unique: ' + str(unique))
+        print('Counts: ' + str(counts))
+        print('')
+        print('---------------------------------')
+
+        counts_low = counts[0]
+        counts_high = counts[1]
+        
+        if counts_low < counts_high:
+            cutoffsets[detector] = counts_low
+        else:
+            cutoffsets[detector] = 10
+
+    return cutoffsets
+
+
+def find_cutoffset_single(viterbi_steps:list) -> int:
+    '''
+    Returns the number of data points to add to cut off position after bleaching.
+    '''
+
+    # Count number of data points in each state
+    unique, counts = np.unique(viterbi_steps, return_counts=True)
+    print(dict(zip(unique, counts)))
+
+    # Get high and low state
+    high_state = unique[1]
+    low_state = unique[0]
+
+    # Assign 0 and 1 to the states in viterbi path
+    steps = viterbi_steps.copy()
+    steps[viterbi_steps == high_state] = 1
+    steps[viterbi_steps == low_state] = 0
+
+    # Count number of data points in each state
+    unique, counts = np.unique(steps, return_counts=True)
+
+    counts_low = counts[0]
+    counts_high = counts[1]
     
+    if counts_low < counts_high:
+        cutoffset = (counts_high-counts_low)
+    else:
+            cutoffset = 10
+
+    return cutoffset
+
+
+
