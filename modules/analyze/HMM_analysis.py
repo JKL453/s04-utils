@@ -148,6 +148,32 @@ def create_bokeh_plot(
     show(p)
 
 
+def plot_viterbi(binned_timestamps:BinnedTimestamps, sf:sfHMM1) -> None:
+    '''
+    Plots the viterbi path of the fitted model to the raw timetrace data.
+    '''
+    # generate x data for bokeh plot
+    x = generate_x_data(binned_timestamps)
+
+    # create the same plot in bokeh
+    p = figure(width=800, height=300)
+
+    # Get bin time
+    bin_time = binned_timestamps.bin_width
+
+    #p.line(x=df.index, y=sfp_two_states.data_raw, line_width=1, color='lightgrey', legend_label='detector_sum')
+    p.line(x=x, y=sf.data_raw, line_width=1, color='#517BA1', legend_label='signal')
+    p.line(x=x, y=sf.viterbi, line_width=2, color='red', legend_label='viterbi')
+    p.legend.location = 'top_right'
+    #p.title.text = f"sfHMM1 with 2 states (forced)"
+
+    # Set the axis labels
+    p.xaxis.axis_label = 'time (s)'
+    p.yaxis.axis_label = 'counts per ' + str(int(bin_time*1e3)) + ' ms'
+
+    show(p)
+
+
 def find_last_step(binned_timestamps:BinnedTimestamps) -> float:
     '''
     Returns the x value of the last step in binned timestamps.
@@ -273,30 +299,41 @@ def find_cutoffset(viterbi_steps:dict) -> dict:
         print('Unique: ' + str(unique))
         print('Counts: ' + str(counts))
 
-        # Get high and low state
-        high_state = unique[1]
-        low_state = unique[0]
+        if len(unique) < 2:
+            print('Only one state found in viterbi path.')
+            print('---------------------------------')
+            cutoffsets[detector] = 0
+            low_state = unique[0]
+            steps = viterbi_steps[detector].copy()
+            steps[viterbi_steps[detector] == low_state] = 0
+            # Count number of data points in each state
+            unique, counts = np.unique(steps, return_counts=True)
+            counts_low = counts[0]
+        else:
+            # Get high and low state
+            high_state = unique[1]
+            low_state = unique[0]
 
-        # Assign 0 and 1 to the states in viterbi path
-        steps = viterbi_steps[detector].copy()
-        steps[viterbi_steps[detector] == high_state] = 1
-        steps[viterbi_steps[detector] == low_state] = 0
+            # Assign 0 and 1 to the states in viterbi path
+            steps = viterbi_steps[detector].copy()
+            steps[viterbi_steps[detector] == high_state] = 1
+            steps[viterbi_steps[detector] == low_state] = 0
 
-        # Count number of data points in each state
-        unique, counts = np.unique(steps, return_counts=True)
+            # Count number of data points in each state
+            unique, counts = np.unique(steps, return_counts=True)
 
-        print('')
-        print('Detector: ' + str(detector))
-        print('Unique: ' + str(unique))
-        print('Counts: ' + str(counts))
-        print('')
-        print('---------------------------------')
+            print('')
+            print('Detector: ' + str(detector))
+            print('Unique: ' + str(unique))
+            print('Counts: ' + str(counts))
+            print('')
+            print('---------------------------------')
 
-        counts_low = counts[0]
-        counts_high = counts[1]
+            counts_low = counts[0]
+            counts_high = counts[1]
         
         if counts_low < counts_high:
-            cutoffsets[detector] = counts_low
+            cutoffsets[detector] = (counts_high-counts_low)
         else:
             cutoffsets[detector] = 10
 
@@ -311,6 +348,10 @@ def find_cutoffset_single(viterbi_steps:list) -> int:
     # Count number of data points in each state
     unique, counts = np.unique(viterbi_steps, return_counts=True)
     print(dict(zip(unique, counts)))
+
+    # Check if there is a high and low state
+    if len(unique) < 2:
+        return 0
 
     # Get high and low state
     high_state = unique[1]
@@ -334,5 +375,6 @@ def find_cutoffset_single(viterbi_steps:list) -> int:
 
     return cutoffset
 
-
+    
+    
 
