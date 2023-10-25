@@ -22,7 +22,9 @@ import glob
 import shutil
 import numpy as np
 from fpdf import FPDF
-from s04utils.modules.load import timestamps, image
+from s04utils.modules.load import image
+from s04utils.modules.load.BinnedTimestamps import BinnedTimestamps
+from s04utils.modules.load import Timestamps
 from s04utils.modules.visualize import plot
 
 from tqdm import tqdm
@@ -101,11 +103,11 @@ def create_plots(path, plot_type='timetrace'):
             # Check if the file is a data file
             if filename.endswith(".h5"):
                 # Create a timestamps object
-                timestamps_object = timestamps.load_from_path(f'{data_dir}/{filename}')
+                timestamps = Timestamps.load_from_path(f'{data_dir}/{filename}')
                 # Save visualization
-                plot.timetrace(timestamps_object, bin_width=0.01, save_path=(f'{data_dir}/{PLOT_DIR}'))
+                plot.timetrace(timestamps, bin_width=0.01, save_path=(f'{data_dir}/{PLOT_DIR}'))
                 # clean up
-                del timestamps_object
+                del timestamps
 
     elif plot_type == 'image':
         # Iterate over the files

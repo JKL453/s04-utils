@@ -152,6 +152,10 @@ def plot_viterbi(binned_timestamps:BinnedTimestamps, sf:sfHMM1) -> None:
     '''
     Plots the viterbi path of the fitted model to the raw timetrace data.
     '''
+
+    # Get bin time
+    bin_time = binned_timestamps.bin_width
+
     # generate x data for bokeh plot
     #x = generate_x_data(binned_timestamps)
     x = np.linspace(0, len(sf.data_raw), len(sf.data_raw))
@@ -159,15 +163,14 @@ def plot_viterbi(binned_timestamps:BinnedTimestamps, sf:sfHMM1) -> None:
     # create the same plot in bokeh
     p = figure(width=800, height=300)
 
-    # Get bin time
-    bin_time = binned_timestamps.bin_width
+    
 
     # Get unique number of states in sfHMM object
     unique = np.unique(sf.viterbi)
 
     #p.line(x=df.index, y=sfp_two_states.data_raw, line_width=1, color='lightgrey', legend_label='detector_sum')
-    p.line(x=x, y=sf.data_raw, line_width=1, color='#517BA1', legend_label='signal')
-    p.line(x=x, y=sf.viterbi, line_width=2, color='red', legend_label='viterbi')
+    p.line(x=x*bin_time, y=sf.data_raw, line_width=1, color='#517BA1', legend_label='signal')
+    p.line(x=x*bin_time, y=sf.viterbi, line_width=2, color='red', legend_label='viterbi')
     p.legend.location = 'top_right'
 
     p.title.text = "sfHMM1 of {} with {} states (optimal)".format(sf.name, len(unique))
@@ -274,7 +277,7 @@ def find_last_steps(binned_timestamps:BinnedTimestamps) -> dict:
 
         # Set cutoff value
         CUT_OFFSET = find_cutoffset_single(steps_viterbi[0:last_value_change])
-        print('Cut_offset: ' + str(CUT_OFFSET))
+        #print('Cut_offset: ' + str(CUT_OFFSET))
 
         # Add last value change to dictionary
         last_steps[detector] = last_value_change+CUT_OFFSET
@@ -371,8 +374,8 @@ def find_cutoffset_single(viterbi_steps:list) -> int:
     counts_low = counts[0]
     counts_high = counts[1]
 
-    print('Counts low: ' + str(counts_low))
-    print('Counts high: ' + str(counts_high))
+    #print('Counts low: ' + str(counts_low))
+    #print('Counts high: ' + str(counts_high))
     
     if counts_low < counts_high:
         cutoffset = int((counts_high-counts_low)/2)

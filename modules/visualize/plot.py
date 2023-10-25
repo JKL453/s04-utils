@@ -23,18 +23,20 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.ticker as ticker
 from IPython.core.display import set_matplotlib_formats
+from s04utils.modules.load.BinnedTimestamps import BinnedTimestamps
+from s04utils.modules.load import Timestamps
 
 # ---------------------------------------------------------------------#
 # --------------------- TIMESTAMPS PLOTTING ---------------------------#
 # ---------------------------------------------------------------------#
 
-def timetrace(timestamps_object, bin_width=0.01, save_path=None):
+def timetrace(timestamps:Timestamps, bin_width, save_path=None):
     '''
     Create a timetrace plot from timestamps data.
     '''
-    timestamps0 = timestamps_object.data['detector0'].to_numpy()
-    timestamps1 = timestamps_object.data['detector1'].to_numpy()
-    #timestamps = self.data['detector0'].to_numpy()
+    timestamps0 = timestamps.data['detector_0'].to_numpy()
+    timestamps1 = timestamps.data['detector_1'].to_numpy()
+    
     timetrace_len = timestamps0[-1]
     timetrace_len_in_s = timetrace_len * 5e-9
     n_bins = timetrace_len_in_s/bin_width
@@ -60,9 +62,9 @@ def timetrace(timestamps_object, bin_width=0.01, save_path=None):
     plt.ylim(0)
     preview.set(xlabel='time (s)', 
                 ylabel='counts per ' + str(int(bin_width*1e3)) + ' ms',
-                title=str(timestamps_object.file_name))
+                title=str(timestamps.file_name))
     # Set x-axis labels to seconds using FuncFormatter
-    plt.gca().xaxis.set_major_formatter(ticker.FuncFormatter(timestamps_object.seconds_formatter))
+    plt.gca().xaxis.set_major_formatter(ticker.FuncFormatter(timestamps.seconds_formatter))
     plt.minorticks_on()
     plt.grid(linewidth = 0.5, alpha = 0.3, which = 'major')
     set_matplotlib_formats('retina')
@@ -71,8 +73,8 @@ def timetrace(timestamps_object, bin_width=0.01, save_path=None):
     if save_path is not None:
         base_path, ext = os.path.splitext(save_path)
        
-        # Get the file name from timestamps_object.file_name
-        file_name = os.path.basename(timestamps_object.file_name)
+        # Get the file name from timestamps.file_name
+        file_name = os.path.basename(timestamps.file_name)
 
         # Append the file name to save_path
         save_path = os.path.join(base_path, file_name)
@@ -167,7 +169,7 @@ def image(image_object, cmap="hot", size="normal", title=True, save_path=None):
         if save_path is not None:
             base_path, ext = os.path.splitext(save_path)
 
-            # Get the file name from timestamps_object.file_name
+            # Get the file name from timestamps.file_name
             file_name = os.path.basename(image_object.file_name)
 
             # Append the file name to save_path
