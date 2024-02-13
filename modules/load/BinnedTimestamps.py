@@ -8,13 +8,6 @@ Classes:
 # import statements
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-from IPython.display import set_matplotlib_formats
-from bokeh.plotting import figure, show, output_notebook, curdoc
-from bokeh.models import FuncTickFormatter
-import seaborn as sns
-import h5py
 
 from s04utils.modules.load.Timestamps import Timestamps
 
@@ -99,7 +92,25 @@ class BinnedTimestamps():
         data['detector_sum'] = self.data['detector_0'][0] + self.data['detector_1'][0]
 
         return data
+    
+    
+    def preview(self):
+        """
+        Plot a preview of the binned timestamps data.
+        """
+        self.timestamps.preview()
+
+    
+    def explore(self):
+        """
+        Explore the binned timestamps data in interactive plot.
+        """
+        self.timestamps.explore()
 
         
     def __repr__(self):
         return f'BinnedTimestamps object with {len(self.data)} datasets.'
+    
+
+
+        

@@ -17,15 +17,16 @@ Classes:
 """
 
 # import statements
+from cProfile import label
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-from IPython.display import set_matplotlib_formats
+from matplotlib_inline.backend_inline import set_matplotlib_formats
 from bokeh.plotting import figure, show, output_notebook, curdoc
-from bokeh.models import FuncTickFormatter
 import seaborn as sns
-import h5py
+
+from s04utils.modules.load import h5
 
 # loading function that returns an image class object
 def load_from_path(path):
@@ -50,72 +51,12 @@ class Timestamps():
         """
         self.path = path
         self.file_name = self.path.split('/')[-1]
-        self.h5_content = h5py.File(self.path, 'r')
-
-        self.groups = self.get_h5_group_list()
-        self.timestamps_raw = self.get_h5_dataset('photon_data0', 'timestamps')
-        self.detectors_raw = self.get_h5_dataset('photon_data0', 'detectors')
+        self.h5_content = h5.load_h5_file(self.path)
+        self.groups = h5.get_group_names(self.h5_content)
+        self.timestamps_raw = h5.get_dataset_content(self.h5_content, 'photon_data0', 'timestamps')
+        self.detectors_raw = h5.get_dataset_content(self.h5_content, 'photon_data0', 'detectors')
         self.detector_count, self.detector_number = self.get_detector_count()
-
         self.data = self.get_timestamps_data()
-        
-        # initialize metadata, like number of 
-        # - time stamps
-        # - time trace length
-        # - number of detectors
-        # - comment string
-        # - timestamps
-        # - all h5 groups need to be read
-    
-    
-    def __len__(self):
-        """
-        Return the number of timestamps.
-        """
-        return self.timestamps.shape[0]
-    
-
-    def get_h5_group_list(self):
-        """
-        Return a list of all h5 groups in the timestamps data.
-        """
-        h5_groups = []
-        for group in self.h5_content.keys():
-            if group != 'comment':
-                h5_groups.append(group)
-
-        return list(h5_groups)
-    
-    
-    #def get_h5_group(self, group_name):
-    #    """
-    #    Return a h5 group from the timestamps data.
-    #    """
-    #    return self.h5_content[group_name]
-    
-    
-    def get_h5_dataset_list(self, group_name):
-        """
-        Return a list of all h5 datasets in a h5 group.
-        """
-        return list(self.h5_content[group_name].keys())
-    
-    
-    def get_h5_dataset(self, group_name, dataset_name):
-        """
-        Return a h5 dataset from a h5 group.
-        """
-        return self.h5_content[group_name][dataset_name][()]
-    
-    def get_h5_overview(self):
-        """
-        Print a list of all h5 groups and datasets in the timestamps data.
-        """
-        for group in self.groups:
-            print(group)
-            for dataset in self.get_h5_dataset_list(group):
-                print('\t', dataset)
-            print()
 
 
     def get_timestamps_data(self):
@@ -140,14 +81,8 @@ class Timestamps():
         # create dictionary with timestamps series from both detectors
         timestaps_series_dict = {'detector_0': timestamps_0, 'detector_1': timestamps_1}
 
-        # check if timestamps series contain data and if not, delete it
-        #if timestaps_series_dict['detector_0'].empty:
-        #    del timestaps_series_dict['detector_0']
-        #elif timestaps_series_dict['detector_1'].empty:
-        #    del timestaps_series_dict['detector_1']
-
         return timestaps_series_dict
-    
+
     
     def sort_timestamps(self, timestamps, detectors):
         """
@@ -172,7 +107,7 @@ class Timestamps():
                                        'timestamps_1': timestamps_detector_1})
        
         return  h5_data_sorted
-    
+
 
     def get_detector_count(self):
         """
@@ -184,24 +119,26 @@ class Timestamps():
 
         return detector_count, detector_number
     
-    # Define the time-to-seconds conversion function
+
     def seconds_formatter(self, x, pos):
-        return f"{x*5e-9:.0f}"  # Convert time to seconds and format as string
+        """
+        Time-to-seconds conversion function for matplotlib FuncFormatter
+        """
+        # Convert time to seconds and format as string
+        return f"{x*5e-9:.0f}"
     
+
     def preview(self, bin_width=0.01):
         """
-        Plot a preview of the timestamps data.
+        Plot a preview of the binned timestamps data.
         """
         timestamps_0 = self.data['detector_0'].to_numpy()
         timestamps_1 = self.data['detector_1'].to_numpy()
 
-        #timestamps = self.data['detector_0'].to_numpy()
         timetrace_len = timestamps_0[-1]
         timetrace_len_in_s = timetrace_len * 5e-9
-        print(timetrace_len_in_s)
-        print(timetrace_len)
         n_bins = timetrace_len_in_s/bin_width
-        print(n_bins)
+        
 
         _, ax = plt.subplots(figsize=(8, 2))
 
@@ -210,19 +147,21 @@ class Timestamps():
                                fill=False, 
                                bins=int(np.floor(n_bins)), 
                                ax=ax,
-                               linewidth=1,
-                               color='#517BA1')
+                               linewidth=0.8,
+                               color='#517BA1',
+                               alpha = 0.8,
+                               label='Detector 0')
         
         sns.histplot(timestamps_1, 
                                element="poly", 
                                fill=False, 
                                bins=int(np.floor(n_bins)), 
                                ax=ax,
-                               linewidth=1,
-                               color='#CA4B43')
+                               linewidth=0.8,
+                               color='#CA4B43',
+                               alpha = 0.8,
+                               label='Detector 1')
         
-        
-        #plt.xlim(0)
         plt.ylim(0)
         preview.set(xlabel='time (s)', 
                     ylabel='counts per ' + str(int(bin_width*1e3)) + ' ms',
@@ -234,16 +173,16 @@ class Timestamps():
         plt.minorticks_on()
         plt.grid(linewidth = 0.5, alpha = 0.3, which = 'major')
         set_matplotlib_formats('retina')
-
+        plt.legend()
         plt.show()
 
+
     def explore(self, bin_width=0.01):
-        '''
-        Displays an interactive Bokeh image plot for exploratory data analysis.
-        '''
+        """
+        Explore the binned timestamps data in interactive plot.
+        """
         timestamps_0 = self.data['detector_0'].to_numpy()
         timestamps_1 = self.data['detector_1'].to_numpy()
-
 
         timetrace_len = timestamps_0[-1]
         timetrace_len_in_s = timetrace_len * 5e-9
@@ -254,15 +193,15 @@ class Timestamps():
         counts0, bins0 = np.histogram(timestamps_0, bins=bins)
         counts1, bins1 = np.histogram(timestamps_1, bins=bins)    
 
-
         p = figure(width=1000, height=250, title='Photon count histogram')
-        p.line(bins0*5e-9, np.append(counts0, 5), line_color='#517BA1')
-        p.line(bins1*5e-9, np.append(counts1, 5), line_color='#CA4B43')
+        p.line(bins0*5e-9, np.append(counts0, 5), line_color='#517BA1', alpha=0.8, legend_label='Detector 0')
+        p.line(bins1*5e-9, np.append(counts1, 5), line_color='#CA4B43', alpha=0.8, legend_label='Detector 1')
 
         p.xaxis.axis_label = 'time (s)'
         p.yaxis.axis_label = 'counts per ' + str(int(bin_width*1e3)) + ' ms'
         p.title = str(self.file_name)
+        p.xaxis.major_label_orientation = "horizontal"
 
-        p.xaxis.major_label_orientation = "horizontal"  # Set the orientation of the tick labels
+        output_notebook()
 
         show(p)

@@ -72,7 +72,7 @@ def timetrace_to_dataframe(timetrace_data) -> pd.DataFrame:
         timetrace (dict): The timetrace dictionary.
 
     Returns:
-        df (pd.DataFrame): The timetrace data as a pandas dataframe.
+        df (pd.DataFrame): The binned timestamps data as a pandas dataframe.
     """
 
    # Get the binned timetrace data for each individual detector
@@ -260,30 +260,47 @@ def find_last_steps(binned_timestamps:BinnedTimestamps) -> dict:
         # Get unique values
         unique, counts = np.unique(steps_viterbi, return_counts=True)
 
-        # Get high and low state
-        high_state = unique[1]
-        low_state = unique[0]
+        # Check if there is a high and low state
+        if len(unique) < 2:
+            print('Only one state found in viterbi path.')
+            print('---------------------------------')
+            last_steps[detector] = 0
+            low_state = unique[0]
+            steps = steps_viterbi.copy()
+            steps[steps_viterbi == low_state] = 0
 
-        # Assign 0 and 1 to the states in viterbi path
-        steps = steps_viterbi.copy()
-        steps[steps_viterbi == high_state] = 1
-        steps[steps_viterbi == low_state] = 0
+            # Count number of data points in each state
+            unique, counts = np.unique(steps, return_counts=True)
+            counts_low = counts[0]
 
-        # Find indices where the state changes
-        value_change = np.where(np.diff(steps))[0]
+            pass
+            
+        else:
 
-        # Get last value change
-        last_value_change = value_change[-1]
+            # Get high and low state
+            high_state = unique[1]
+            low_state = unique[0]
 
-        # Set cutoff value
-        CUT_OFFSET = find_cutoffset_single(steps_viterbi[0:last_value_change])
-        #print('Cut_offset: ' + str(CUT_OFFSET))
+            # Assign 0 and 1 to the states in viterbi path
+            steps = steps_viterbi.copy()
+            steps[steps_viterbi == high_state] = 1
+            steps[steps_viterbi == low_state] = 0
 
-        # Add last value change to dictionary
-        last_steps[detector] = last_value_change+CUT_OFFSET
+            # Find indices where the state changes
+            value_change = np.where(np.diff(steps))[0]
 
-        # Add viterbi steps to dictionary
-        viterbi_steps[detector] = steps_viterbi[0:last_value_change+CUT_OFFSET]
+            # Get last value change
+            last_value_change = value_change[-1]
+
+            # Set cutoff value
+            CUT_OFFSET = find_cutoffset_single(steps_viterbi[0:last_value_change])
+            #print('Cut_offset: ' + str(CUT_OFFSET))
+
+            # Add last value change to dictionary
+            last_steps[detector] = last_value_change+CUT_OFFSET
+
+            # Add viterbi steps to dictionary
+            viterbi_steps[detector] = steps_viterbi[0:last_value_change+CUT_OFFSET]
 
     return last_steps, viterbi_steps
 
@@ -316,6 +333,9 @@ def find_cutoffset(viterbi_steps:dict) -> dict:
             # Count number of data points in each state
             unique, counts = np.unique(steps, return_counts=True)
             counts_low = counts[0]
+
+            pass
+
         else:
             # Get high and low state
             high_state = unique[1]
@@ -385,5 +405,33 @@ def find_cutoffset_single(viterbi_steps:list) -> int:
     return cutoffset
 
     
-    
+def get_dwell_times(sf: sfHMM1) -> dict:
+    '''
+    Returns a dictionary with the dwell times for each state in the model.
+    '''
+    # Get unique number of states in sfHMM object
+    unique = np.unique(sf.viterbi)
+    # Initialize dictionary
+    dwell_times = {}
+    # Iterate over unique states
+    for state in unique:
+        # Get indices for state
+        indices = np.where(sf.viterbi == state)[0]
+        # Find the indices where the signal enters and exits the state
+        enter_indices = np.where(np.diff(indices) != 1)[0] + 1
+        exit_indices = np.where(np.diff(indices) != 1)[0]
+        # Add the first index and the last index
+        enter_indices = np.insert(enter_indices, 0, 0)
+        exit_indices = np.append(exit_indices, len(indices) - 1)
+        # Calculate the dwell times
+        dwell_times[state] = indices[exit_indices] - indices[enter_indices]
+    # Check if there is only one state in the viterbi path
+    if len(unique) < 2:
+        
+        dwell_times['0'] = [0]        
+
+
+    return dwell_times
+
+
 
