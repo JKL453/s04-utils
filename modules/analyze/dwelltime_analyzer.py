@@ -16,15 +16,12 @@ Usage:
 '''
 
 # import statements
-from gettext import find
-from grpc import dynamic_ssl_server_credentials
-import numpy as np
 import numpy as np
 import pandas as pd
+from typing import Tuple
 import matplotlib.pyplot as plt
-from bokeh.plotting import figure, show, output_notebook, curdoc
-from matplotlib_inline.backend_inline import set_matplotlib_formats
-from pybaselines import Baseline
+from bokeh.plotting import figure, output_notebook
+from bokeh.io import show
 from sfHMM import sfHMM1
 from sfHMM.gmm import GMMs
 
@@ -37,6 +34,14 @@ from s04utils.modules.load.BinnedTimestamps import BinnedTimestamps
 
 # TODO:
 # - make functions usable from the outside (input parameters with defaults)
+# - add docstrings to functions
+# - add type hints to functions
+# - add type hints to class attributes
+# - add dataframe that contains the results of the analysis
+# - add function that plots the results of the analysis
+# - move analysis function to separate module for HMM and thresholding
+
+# - GMMS optomal number of states 
 
 
 class DwellTimeAnalyzer():
@@ -78,11 +83,13 @@ class DwellTimeAnalyzer():
         self.last_steps, _ = self.find_last_step_in_binned_data()
 
         # Contains the step finder objects for each detector and sum
-        self.step_finder_HMM_dict = self.get_step_finder_HMM(min_states=min_states, max_states=max_states)
+        self.step_finder_HMM = self.get_step_finder_HMM(min_states=min_states, max_states=max_states)
 
         # Contains the viterbi path for each detector and sum
-        self.viterbi_path_dict = self.get_viterbi_paths()
+        self.viterbi_path = self.get_viterbi_paths()
 
+        # Contains a dictionary with the dwell times for each state in the model
+        self.dwell_times = self.get_dwell_times()
 
 
     @classmethod
@@ -99,12 +106,51 @@ class DwellTimeAnalyzer():
 
 
 
-    def get_dwell_times(self, binned_timestamps:BinnedTimestamps) -> None:
+    def get_dwell_times(self, step_finder_HMM: dict[str, sfHMM1]=None) -> dict[str, dict]: # type: ignore
         '''
-        Calculate the dwell times from binned timestamps data.
+        Returns a dictionary with the dwell times for each state in the model.
         '''
-        # Get binned timestamps data
-        data = binned_timestamps.data
+        # Set step_finder_HMM if not specified
+        if step_finder_HMM is None:
+            step_finder_HMM = self.step_finder_HMM
+
+        # Create dictionary for dwell times for each detector and sum
+        dwell_times_dict = {}
+
+        # Iterate over detectors in step_finder_HMM
+        for detector in step_finder_HMM:
+            # Get step finder object
+            sf = step_finder_HMM[detector]
+
+            # Get unique number of states in sfHMM object
+            unique = np.unique(np.array(sf.viterbi))
+
+            # Initialize dictionary
+            dwell_times = {}
+           
+            # Iterate over unique states
+            for state in unique:
+                # Get indices for state
+                indices = np.where(sf.viterbi == state)[0]
+                
+                # Find the indices where the signal enters and exits the state
+                enter_indices = np.where(np.diff(indices) != 1)[0] + 1
+                exit_indices = np.where(np.diff(indices) != 1)[0]
+                
+                # Add the first index and the last index
+                enter_indices = np.insert(enter_indices, 0, 0)
+                exit_indices = np.append(exit_indices, len(indices) - 1)
+
+                # Calculate the dwell times
+                dwell_times[state.astype(int)] = indices[exit_indices] - indices[enter_indices]
+
+            # Check if there is only one state in the viterbi path
+            if len(unique) < 2:
+                dwell_times['0'] = [0]        
+
+            dwell_times_dict[detector] = dwell_times
+
+        return dwell_times_dict
 
 
 
@@ -113,7 +159,7 @@ class DwellTimeAnalyzer():
                             max_states: int = None,                         # type: ignore
                             min_states: int = None,                         # type: ignore
                             model: str = None,                              # type: ignore
-                            plot: bool = None) -> dict[str: sfHMM1]:        # type: ignore
+                            plot: bool = None) -> dict[str, sfHMM1]:        # type: ignore
         '''
         Returns a dict that contains a step finder object for each detector
         and sum.
@@ -166,7 +212,8 @@ class DwellTimeAnalyzer():
         return step_finder_dict
     
 
-    def get_viterbi_paths(self) -> dict:
+
+    def get_viterbi_paths(self) -> dict[str, np.ndarray]:
         '''
         Returns the viterbi path for each detector and sum.
         '''
@@ -174,7 +221,7 @@ class DwellTimeAnalyzer():
         viterbi_path_dict = {}
 
         # Get the step finder objects for each detector and sum
-        step_finder_HMM_dict = self.step_finder_HMM_dict
+        step_finder_HMM_dict = self.step_finder_HMM
 
         for detector in step_finder_HMM_dict:
             # Get step finder object
@@ -190,7 +237,7 @@ class DwellTimeAnalyzer():
     
 
     
-    def find_last_step_in_binned_data(self) -> dict:
+    def find_last_step_in_binned_data(self) -> Tuple[dict, dict]:
         '''
         Returns the x value of the last step for detector_0, detector_1
         and detector_sum in binned timestamps.
@@ -210,7 +257,7 @@ class DwellTimeAnalyzer():
             sf = sfHMM1(detector_data, krange=(2, 2), model='p').run_all(plot=False)
 
             # Get the viterbi path
-            steps_viterbi = sf.viterbi
+            steps_viterbi = np.array(sf.viterbi)
 
             # Get unique values
             unique, counts = np.unique(steps_viterbi, return_counts=True)
@@ -254,14 +301,14 @@ class DwellTimeAnalyzer():
                 last_steps[detector] = last_value_change+CUT_OFFSET
 
                 # Add viterbi steps to dictionary
-                viterbi_steps[detector] = steps_viterbi[0:last_value_change+CUT_OFFSET]
+                viterbi_steps[detector] = steps_viterbi[0:last_value_change+CUT_OFFSET].astype(int)
 
         return last_steps, viterbi_steps
     
 
 
 
-    def find_cutoffset_single(self, viterbi_steps:list) -> int:
+    def find_cutoffset_single(self, viterbi_steps) -> int:
         '''
         Returns the number of data points to add to cut off position after bleaching.
         '''
@@ -301,6 +348,7 @@ class DwellTimeAnalyzer():
         '''
         Plots the viterbi path of the fitted model to the raw timetrace data.
         '''
+        output_notebook()
 
         # Get bin time
         bin_time = self.binned_timestamps.bin_width
@@ -312,10 +360,8 @@ class DwellTimeAnalyzer():
         # create the same plot in bokeh
         p = figure(width=800, height=300)
 
-
-
         # Get unique number of states in sfHMM object
-        unique = np.unique(sf.viterbi)
+        unique = np.unique(np.array(sf.viterbi))
 
         #p.line(x=df.index, y=sfp_two_states.data_raw, line_width=1, color='lightgrey', legend_label='detector_sum')
         p.line(x=x*bin_time, y=sf.data_raw, line_width=1, color='#517BA1', legend_label='signal')
