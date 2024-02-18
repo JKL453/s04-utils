@@ -41,7 +41,14 @@ from s04utils.modules.load.BinnedTimestamps import BinnedTimestamps
 # - add function that plots the results of the analysis
 # - move analysis function to separate module for HMM and thresholding
 
-# - GMMS optomal number of states 
+# - GMMS optimal number of states 
+# - GMMS plot
+# - handle case where only one state is found in viterbi path
+# - add function that returns the results of the analysis as a dataframe
+# - add function that plots the results of the analysis
+
+# - add function that decides if the signal from the detector is good enough to be analyzed
+#   and decides if detector sum or which detector should be used
 
 
 class DwellTimeAnalyzer():
@@ -56,7 +63,6 @@ class DwellTimeAnalyzer():
         - step_finder_HMM: sfHMM1
 
     Methods:
-        - update
         - get_dwell_times
         - get_step_finder_HMM
         - find_last_step_in_binned_data
@@ -92,21 +98,13 @@ class DwellTimeAnalyzer():
         self.dwell_times = self.get_dwell_times()
 
 
-    @classmethod
-    def update(cls, stepfinder_model, krange, model, name, cutoff, binned_timestamps:BinnedTimestamps) -> None:
-        '''
-        Update the class with new parameters.
-        '''
-        cls.step_finder_HMM = stepfinder_model
-        cls.krange = krange
-        cls.model = model
-        cls.name = name
-        cls.cutoff = cutoff
-        cls.binned_timestamps = binned_timestamps
+    
 
 
 
-    def get_dwell_times(self, step_finder_HMM: dict[str, sfHMM1]=None) -> dict[str, dict]: # type: ignore
+    def get_dwell_times(self, 
+                        step_finder_HMM: dict[str, sfHMM1] = None, 
+                        rename_states = True) -> dict[str, dict]: # type: ignore
         '''
         Returns a dictionary with the dwell times for each state in the model.
         '''
@@ -208,7 +206,7 @@ class DwellTimeAnalyzer():
             
             # Add step finder to dictionary
             step_finder_dict[detector] = step_finder_HMM
-            
+        
         return step_finder_dict
     
 
@@ -394,3 +392,43 @@ class DwellTimeAnalyzer():
         df = pd.DataFrame({'detector_0': detector_0, 'detector_1': detector_1, 'detector_sum': detector_sum})
 
         return df
+    
+
+    def get_best_detector(self, binned_timestamps:BinnedTimestamps) -> str:
+        '''
+        Returns the detector with the highest energy.
+        '''
+        # Get the binned timetrace data for each individual detector
+        detector_0_data = binned_timestamps.as_dataframe['detector_0']
+        detector_1_data = binned_timestamps.as_dataframe['detector_1']
+
+        # Calculate the energy of the signal for each detector
+        energy_detector_0 = np.sum(np.square(detector_0_data))
+        energy_detector_1 = np.sum(np.square(detector_1_data))
+
+        print('Energy detector_0:', energy_detector_0)
+        print('Energy detector_1:', energy_detector_1)
+
+        return 'detector_0' if energy_detector_0 > energy_detector_1 else 'detector_1'
+
+
+
+    def rename_states(self, dwell_times: dict, state_names: list) -> dict:
+        '''
+        Returns a dictionary with renamed states.
+        '''
+        # Initialize the lists
+        on_times = []
+        off_times = []
+
+        # Iterate over the list of dictionaries
+        for dwell_times in dwell_times_list:
+            # Append the 'on' and 'off' times to the respective lists
+            off_times.extend(dwell_times['off'])
+            on_times.extend(dwell_times['on'])
+
+        print(len(on_times))
+        print(len(off_times))
+        print(on_times)
+
+        return renamed_states
