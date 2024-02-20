@@ -14,19 +14,18 @@ Usage:
 '''
 
 # Import modules
-from math import log
 from typing import Any, Tuple
-from click import style
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 
 # ---------------------------------------------------------------------#
 # ---------------------- Histogram FUNCTIONS --------------------------#
 # ---------------------------------------------------------------------#
 
-def create_histogram(dwell_times:list[int], 
+def get_hist(dwell_times:list[int], 
                      bin_width:int=10
                      )-> Tuple[np.ndarray, np.ndarray]:
     '''
@@ -55,22 +54,19 @@ def create_histogram(dwell_times:list[int],
 
 
 
-def plot_histogram(dwell_times:list[int],
+def plot_hist(dwell_times:list[int],
                    bin_width:int=10,
                    title:str='Dwell Time Histogram', 
                    xlabel:str='Dwell Time (ms)', 
                    ylabel:str='Counts',
-                   log_scale:Tuple[bool, bool] = (False, True)
                    ) -> None:
     '''
     Plot histogram data.
     
     Parameters
     ----------
-    counts : array
-        Array of histogram counts.
-    bin_edges : array
-        Array of bin edges.
+    dwell_times : list or array of int
+        List or array of dwell times in milliseconds.
     bin_width : int
         Width of histogram bins in milliseconds.
     title : str
@@ -87,22 +83,25 @@ def plot_histogram(dwell_times:list[int],
     n_bins = int(np.max(dwell_times)/ bin_width)
 
     # Create figure for seaborn histogram
-    plt.figure(figsize=(4, 2))
+    _, ax = plt.subplots(1, 1, figsize=(4, 2))
 
-    # Plot histogram data with seaborn
-    sns.set_theme(style='ticks')
-    sns.histplot(dwell_times, bins=n_bins, kde=False, log_scale=log_scale)
+    # Plot histogram data
+    plt.hist(dwell_times, bins=n_bins, histtype='stepfilled')
 
     # Set plot title and axis labels
-    plt.title(title)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
+    # Set logaritmic scale for y axis
+    ax.set_yscale('log')
 
     # Show plot
     plt.show()
 
 
-def get_probabilities(dwell_times:list[int], bin_width:int=10):
+
+def get_prob(dwell_times:list[int], bin_width:int=10):
     '''
     Calculate probability densities from dwell time histogram data.
 
@@ -117,26 +116,143 @@ def get_probabilities(dwell_times:list[int], bin_width:int=10):
     -------
     prob_densities : array
         Array of probability densities.
+    bins : array
+        Array of bin edges / x values.
     '''
     # Get histogram counts and bin edges from dwell times
-    counts, _ = create_histogram(dwell_times=dwell_times, bin_width=bin_width)
+    counts, bins = get_hist(dwell_times=dwell_times, bin_width=bin_width)
 
     # Get weight factors for calculating probability densities
     weight_factors = get_distances_to_neighbours(counts)
 
-
     # Calculate probability densities
     prob_desities = counts * weight_factors
+
+    # remove bins with zero counts
+    bins = bins[:-1]
+    bins = bins[prob_desities > 0]
 
     # Remove zeroes from probabilities
     prob_desities = remove_zero_counts(prob_desities)
 
-    return prob_desities
+    return prob_desities, bins
 
 
 
-def plot_prob_density():
-    pass
+def plot_prob(dwell_times:list[int],
+                   bin_width:int=10,
+                   title:str='Probability Density Plot', 
+                   xlabel:str='Time (ms)', 
+                   ylabel:str='Probability Density'
+                   ) -> None:
+    '''
+    Plot probability density distribution.
+
+    Parameters
+    ----------
+    dwell_times : array
+        Array of dwell times in milliseconds.
+    bin_width : int
+        Width of histogram bins in milliseconds.
+    title : str
+        Title of probability density plot.
+    xlabel : str
+        Label for x-axis.
+    ylabel : str
+        Label for y-axis.
+
+    Returns
+    -------
+    None
+    '''
+    # Get probability densities and bin edges from dwell times
+    prob_densities, bins = get_prob(dwell_times, bin_width)
+
+    # Create figure for probability density plot
+    _, ax = plt.subplots(1, 1, figsize=(4, 2))
+
+    # Plot probability density data
+    ax.plot(bins, prob_densities, '.')
+
+    # Set plot title and axis labels
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
+    # Set logaritmic scale for y axis
+    #ax.set_xscale('log')
+    ax.set_yscale('log')
+
+    # Show plot
+    plt.show()
+
+
+
+def plot_hist_and_prob(dwell_times:list[int],
+                    bin_width:int=10,
+                    title:str='Probability Density Plot', 
+                    xlabel:str='Time (ms)', 
+                    ylabel:list[str]=['Counts', 'Probability Density']
+                    ) -> None:
+    '''
+    Plot histogram of dwell times and the corresponding probability 
+    density distribution.
+
+    Parameters
+    ----------
+    dwell_times : array
+         Array of dwell times in milliseconds.
+    bin_width : int
+         Width of histogram bins in milliseconds.
+    title : str
+         Title of probability density plot.
+    xlabel : str
+         Label for x-axis.
+    ylabel : list of str
+            Labels for y-axis.
+
+    Returns
+    -------
+    None
+    '''
+    # Create figure for probability density plot
+    _, ax = plt.subplots(2, 1, figsize=(4, 5))
+
+    # Plot histogram data
+    n_bins = int(np.max(dwell_times)/ bin_width)
+    ax[0].hist(dwell_times, bins=n_bins, histtype='stepfilled')
+    
+    # Set plot title and axis labels
+    ax[0].set_title(title)
+    ax[0].set_xlabel(xlabel)
+    ax[0].set_ylabel(ylabel[0])
+
+    # Set logaritmic scale for y axis
+    ax[0].set_yscale('log')
+
+    # Get probability densities and bin edges from dwell times
+    prob_densities, bins = get_prob(dwell_times, bin_width)
+
+    # Plot probability density data
+    ax[1].plot(bins, prob_densities, '.')
+
+    # Set plot title and axis labels
+    ax[1].set_title(title)
+    ax[1].set_xlabel(xlabel)
+    ax[1].set_ylabel(ylabel[1])
+
+    # Set logaritmic scale for y axis
+    #ax[1].set_xscale('log')
+    ax[1].set_yscale('log')
+
+    # Show plot
+    plt.tight_layout()
+    plt.show()
+
+
+# ---------------------------------------------------------------------#
+# ---------------------- Helper FUNCTIONS -----------------------------#
+# ---------------------------------------------------------------------#
 
 
 
@@ -192,17 +308,11 @@ def get_distances_to_neighbours(counts:np.ndarray):
         else:
             distances.append(0)
 
-    #print('distances')
-    #print(distances)
-
     # print non-zero values in distances
     non_zero_distances = []
     for i in range(len(distances)):
         if distances[i] > 0:
             non_zero_distances.append(distances[i])
-
-    #print('non_zero_distances_on')
-    #print(non_zero_distances)
 
     # calculate recursive value for every non-zero value in distances
     recursive_distances = []
@@ -214,9 +324,6 @@ def get_distances_to_neighbours(counts:np.ndarray):
                 recursive_distances.append(0)
             else:
                 recursive_distances.append(1/distances[i])
-    
-    #print('recursive_distances')
-    #print(recursive_distances)
 
     return recursive_distances
 
