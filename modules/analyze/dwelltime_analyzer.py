@@ -97,14 +97,18 @@ class DwellTimeAnalyzer():
         # Contains a dictionary with the dwell times for each state in the model
         self.dwell_times = self.get_dwell_times()
 
+        # Contains the name of the detector with the highest energy
+        self.best_detector = self.get_best_detector(binned_timestamps)
+
 
     
 
 
 
     def get_dwell_times(self, 
-                        step_finder_HMM: dict[str, sfHMM1] = None, 
-                        rename_states = True) -> dict[str, dict]: # type: ignore
+                        step_finder_HMM: dict[str, sfHMM1] = None,  # type: ignore
+                        rename_states = True
+                        ) -> dict[str, dict]:                       # type: ignore
         '''
         Returns a dictionary with the dwell times for each state in the model.
         '''
@@ -349,7 +353,7 @@ class DwellTimeAnalyzer():
         output_notebook()
 
         # Get bin time
-        bin_time = self.binned_timestamps.bin_width
+        bin_time = self.binned_timestamps_object.bin_width
 
         # generate x data for bokeh plot
         #x = generate_x_data(binned_timestamps)

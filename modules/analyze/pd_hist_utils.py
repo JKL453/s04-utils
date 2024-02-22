@@ -61,7 +61,8 @@ def get_hist(dwell_times:list[int],
 
 
 def get_prob(dwell_times:list[int], 
-             bin_width:int=10
+             bin_width:int=10,
+             method:str='neighbour'
              ) -> Tuple[np.ndarray, np.ndarray]:
     '''
     Calculate probability densities from dwell time histogram data.
@@ -72,6 +73,10 @@ def get_prob(dwell_times:list[int],
         List or array of dwell times in milliseconds.
     bin_width : int
         Width of histogram bins in milliseconds.
+    method : str
+        Method for calculating probability densities.
+        'neighbour' : Use distances to neighbours for weighting.
+        'bin_width' : Use bin width for weighting.
     
     Returns
     -------
@@ -83,8 +88,12 @@ def get_prob(dwell_times:list[int],
     # Get histogram counts and bin edges from dwell times
     counts, bins = get_hist(dwell_times=dwell_times, bin_width=bin_width)
 
-    # Get weight factors for calculating probability densities
-    weight_factors = get_distances_to_neighbours(counts)
+    if method == 'neighbour':
+        # Get weight factors for calculating probability densities
+        weight_factors = get_distances_to_neighbours(counts)
+    elif method == 'bin_width':
+        # Get weight factors for calculating probability densities
+        weight_factors = np.ones(len(counts)) * 1/bin_width
 
     # Calculate probability densities
     prob_desities = counts * weight_factors
@@ -101,7 +110,8 @@ def get_prob(dwell_times:list[int],
 
 
 def get_log_prob(dwell_times:list[int], 
-                 bin_width:int=10
+                 bin_width:int=10,
+                 method:str='neighbour'
                  ) -> Tuple[np.ndarray, np.ndarray]:
     '''
     Calculate logarithmic probability densities from dwell time data.
@@ -112,6 +122,10 @@ def get_log_prob(dwell_times:list[int],
         List or array of dwell times in milliseconds.
     bin_width : int
         Width of histogram bins in milliseconds.
+    method : str
+        Method for calculating probability densities.
+        'neighbour' : Use distances to neighbours for weighting.
+        'bin_width' : Use bin width for weighting.
     
     Returns
     -------
@@ -121,11 +135,16 @@ def get_log_prob(dwell_times:list[int],
         Array of bin edges / x values.
     '''
     # Get probability densities and bin edges from dwell times
-    prob_densities, bins = get_prob(dwell_times, bin_width)
+    prob_densities, bins = get_prob(dwell_times, bin_width, method=method)
 
-    print('prob_densities:', prob_densities)
-    print('bins:', bins)
+    #print('prob_densities:', prob_densities)
+    #print('bins:', bins)
 
+    if method == 'bin_width':
+        # Remove specified value from prob_densities and corresponding bins
+        prob_densities, bins = clean_prob_and_bins(prob_densities, bins, bin_width)
+
+    # add small offset to bins to avoid log(0)
     bins[0] = 1
 
     # get log values for on_bins and weighted_on_counts
@@ -136,13 +155,16 @@ def get_log_prob(dwell_times:list[int],
     log_bins = log_bins[np.isfinite(log_prob_densities)]
     log_prob_densities = log_prob_densities[np.isfinite(log_prob_densities)]
 
-    print('log_prob_densities:', log_prob_densities)
-    print('log_bins:', log_bins)
+    #print('log_prob_densities:', log_prob_densities)
+    #print('log_bins:', log_bins)
 
     # remove NaN from arrays
     log_bins = log_bins[~np.isnan(log_prob_densities)]
     log_prob_densities = log_prob_densities[~np.isnan(log_prob_densities)]
 
+    # Remove zeroes from probabilities and remove corresponding bins
+    
+    # Set first bin to 0 
     log_bins[0] = 0
 
     return log_prob_densities, log_bins
@@ -204,6 +226,7 @@ def plot_hist(dwell_times:list[int],
 
 def plot_prob(dwell_times:list[int],
                    bin_width:int=10,
+                   method:str='neighbour',
                    title:str='Probability Density Plot', 
                    xlabel:str='Time (ms)', 
                    ylabel:str='Probability Density'
@@ -217,6 +240,10 @@ def plot_prob(dwell_times:list[int],
         Array of dwell times in milliseconds.
     bin_width : int
         Width of histogram bins in milliseconds.
+    method : str
+        Method for calculating probability densities.
+        'neighbour' : Use distances to neighbours for weighting.
+        'bin_width' : Use bin width for weighting.
     title : str
         Title of probability density plot.
     xlabel : str
@@ -229,7 +256,7 @@ def plot_prob(dwell_times:list[int],
     None
     '''
     # Get probability densities and bin edges from dwell times
-    prob_densities, bins = get_prob(dwell_times, bin_width)
+    prob_densities, bins = get_prob(dwell_times, bin_width, method=method)
 
     # Create figure for probability density plot
     _, ax = plt.subplots(1, 1, figsize=(4, 2))
@@ -261,6 +288,7 @@ def plot_prob(dwell_times:list[int],
 
 def plot_hist_and_prob(dwell_times:list[int],
                     bin_width:int=10,
+                    method:str='neighbour',
                     title:str='Probability Density Plot', 
                     xlabel:str='Time (ms)', 
                     ylabel:list[str]=['Counts', 'Probability Density'],
@@ -273,22 +301,26 @@ def plot_hist_and_prob(dwell_times:list[int],
     Parameters
     ----------
     dwell_times : array
-         Array of dwell times in milliseconds.
+        Array of dwell times in milliseconds.
     bin_width : int
          Width of histogram bins in milliseconds.
+    method : str
+        Method for calculating probability densities.
+        'neighbour' : Use distances to neighbours for weighting.
+        'bin_width' : Use bin width for weighting.
     title : str
-         Title of probability density plot.
+        Title of probability density plot.
     xlabel : str
-         Label for x-axis.
+        Label for x-axis.
     ylabel : list of str
-            Labels for y-axis.
+        Labels for y-axis.
 
     Returns
     -------
     None
     '''
     # Create figure for probability density plot
-    _, ax = plt.subplots(2, 1, figsize=(4, 5))
+    _, ax = plt.subplots(2, 1, figsize=(4, 4), sharex=True, gridspec_kw={'hspace': 0.05})
 
     # Plot histogram data
     n_bins = int(np.max(dwell_times)/ bin_width)
@@ -296,7 +328,7 @@ def plot_hist_and_prob(dwell_times:list[int],
     
     # Set plot title and axis labels
     ax[0].set_title(title)
-    ax[0].set_xlabel(xlabel)
+    #ax[0].set_xlabel(xlabel)
     ax[0].set_ylabel(ylabel[0])
 
     # Set logaritmic scale for y axis
@@ -304,13 +336,13 @@ def plot_hist_and_prob(dwell_times:list[int],
 
 
     # Get probability densities and bin edges from dwell times
-    prob_densities, bins = get_prob(dwell_times, bin_width)
+    prob_densities, bins = get_prob(dwell_times, bin_width, method=method)
 
     # Plot probability density data
     ax[1].plot(bins, prob_densities, '.')
 
     # Set plot title and axis labels
-    ax[1].set_title(title)
+    #ax[1].set_title(title)
     ax[1].set_xlabel(xlabel)
     ax[1].set_ylabel(ylabel[1])
 
@@ -338,13 +370,13 @@ def plot_hist_and_prob(dwell_times:list[int],
             a.xaxis.set_tick_params(direction='in', which='both')
 
     # Show plot
-    plt.tight_layout()
     plt.show()
 
 
 
 def plot_power_law_fit(dwell_times:list[int],
                         bin_width:int=10,
+                        method:str='neighbour',
                         title:str='Power Law Fit',
                         xlabel:str='Time (ms)',
                         ylabel:str='Probability Density',
@@ -355,24 +387,43 @@ def plot_power_law_fit(dwell_times:list[int],
 
     Parameters
     ----------
-    
+    dwell_times : array
+        Array of dwell times in milliseconds.
+    bin_width : int
+        Width of histogram bins in milliseconds.
+    method : str
+        Method for calculating probability densities.
+        'neighbour' : Use distances to neighbours for weighting.
+        'bin_width' : Use bin width for weighting.
+    title : str
+        Title of power law fit plot.
+    xlabel : str
+        Label for x-axis.
+    ylabel : str
+        Label for y-axis.
+    index_str : str
+        SUbscript text for slope displayed on plot.
 
     Returns
     -------
     None
     '''
     # Get probability densities and bin edges from dwell times
-    prob_densities, bins = get_prob(dwell_times, bin_width)
+    prob_densities, bins = get_prob(dwell_times, bin_width, method=method)
 
     # Get logarithmic probability densities and bin edges from dwell times
-    log_prob_densities, log_bins = get_log_prob(dwell_times, bin_width)
+    log_prob_densities, log_bins = get_log_prob(dwell_times, bin_width, method=method)
 
     # Fit power law to logarithmic probability density distribution
     pl_fit_func, coeffs = get_power_law_fit(log_prob_densities, log_bins)
 
     # Create figure for power law fit plot
-    _, ax = plt.subplots(1, 1, figsize=(4, 4))
-    ax.set_aspect('equal')
+    _, ax = plt.subplots(1, 1, figsize=(3, 4))
+    #ax.set_aspect('equal')
+
+    if method == 'bin_width':
+        # Remove specified value from prob_densities and corresponding bins
+        prob_densities, bins = clean_prob_and_bins(prob_densities, bins, bin_width)
 
     # add small offset to log_bins_on and on_bins to avoid log(0)
     bins[0] = 1
@@ -471,9 +522,20 @@ def remove_zero_counts(counts):
 
 
 
-def get_distances_to_neighbours(counts:np.ndarray):
+def get_distances_to_neighbours(counts:np.ndarray) -> np.ndarray:
     '''
-    
+    Calculates the distances to the next non-zero value to the left and right
+    for each value in the histogram data.
+
+    Parameters
+    ----------
+    counts : array
+        Array of histogram counts.
+
+    Returns
+    -------
+    recursive_distances : array
+        Array of recursive distances to the next non-zero value.
     '''
     # for each value in x that is greater than 0, 
     # get the distances to the next non-zero value to the left and right
@@ -517,10 +579,23 @@ def get_distances_to_neighbours(counts:np.ndarray):
             else:
                 recursive_distances.append(1/distances[i])
 
-    return recursive_distances
-
-
-    
+    return np.array(recursive_distances)
 
 
 
+def clean_prob_and_bins(prob_densities:np.ndarray, 
+                        bins:np.ndarray, 
+                        bin_width:int
+                        ) -> Tuple[np.ndarray, np.ndarray]:
+    '''
+    Clean probability densities and corresponding bins by removing
+    specified values.
+    '''
+    # Remove specified value from prob_densities and corresponding bins
+    prob_densities_cleaned = prob_densities[prob_densities != (1/bin_width)]
+    bins_cleaned = bins[prob_densities != (1/bin_width)]
+
+    #print('prob_densities_cleaned:', prob_densities_cleaned)
+    #print('bins_cleaned:', bins_cleaned)
+
+    return prob_densities_cleaned, bins_cleaned
