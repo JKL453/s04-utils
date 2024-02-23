@@ -101,9 +101,6 @@ class DwellTimeAnalyzer():
         self.best_detector = self.get_best_detector(binned_timestamps)
 
 
-    
-
-
 
     def get_dwell_times(self, 
                         step_finder_HMM: dict[str, sfHMM1] = None,  # type: ignore
