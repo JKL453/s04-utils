@@ -24,20 +24,17 @@ Usage:
     dwell_times = dta.get_dwell_times()
 '''
 
+
+
 # Import modules
 import numpy as np
 import pandas as pd
 from typing import Tuple
 import matplotlib.pyplot as plt
-from bokeh.plotting import figure, output_notebook
-from bokeh.io import show
-import scipy
 from sfHMM import sfHMM1
 from sfHMM.gmm import GMMs
 
-from s04utils.modules.load.Timestamps import Timestamps
 from s04utils.modules.load.BinnedTimestamps import BinnedTimestamps
-from torch import le
 
 
 
@@ -101,6 +98,37 @@ class DwelltimeAnalyzer():
         self.bts_object = binned_timestamps
         self.bin_width = binned_timestamps.bin_width
         self.bts_data = self.get_bts_data()
+
+
+    
+    def analyze(self, analysis_method:str='sfHMM', detector_selection:str='auto'):
+        '''
+        Analyze the binned timestamps data.
+
+        Parameters:
+            analysis_method: str
+                Analysis method to be used. Must be "sfHMM" or "threshold".
+            detector_selection: str
+                Detector to be analyzed. Must be "detector_0", "detector_1", "detector_sum" 
+                or "auto" (default). If "auto" is selected, the detector with the highest
+                energy in the data will be selected.
+        Returns:
+            None
+        '''
+        # Set the analysis method
+        self.set_analysis_method(analysis_method)
+
+        # Set the detector
+        self.set_detector(detector_selection)
+
+        # Fit the sfHMM model
+        self.fit_sfHMM()
+
+        # Get dwell times
+        self.get_dwell_times()
+
+        # Rename dwell time states
+        self.rename_dwell_time_states()
 
 
 
@@ -376,8 +404,6 @@ class DwelltimeAnalyzer():
 
         # Count number of data points in each state
         unique, counts = np.unique(states, return_counts=True)
-        print(unique)
-        print(counts)
 
         # Check if there is a high and low state
         if len(unique) < 2:
@@ -440,6 +466,32 @@ class DwelltimeAnalyzer():
         self.dwell_times = dwell_times
 
 
+    
+    def rename_dwell_time_states(self):
+        '''
+        Rename dwell times.
+
+        Parameters:
+            None
+        Returns:
+            None
+        '''
+        # Check if dwell times have been calculated
+        err_str = 'Dwell times have not been calculated. Use get_dwell_times method to calculate dwell times.'
+        if len(self.dwell_times) == 0:
+            raise ValueError(err_str)
+
+        # Get keys from dwell times dictionary
+        keys = list(self.dwell_times.keys())
+
+        # Rename the keys
+        first_key = list(keys)[0]
+        second_key = list(keys)[1]
+
+        self.dwell_times['off'] = self.dwell_times.pop(first_key)
+        self.dwell_times['on'] = self.dwell_times.pop(second_key)
+
+
 
     def check_signal(self) -> None:
         '''
@@ -455,4 +507,3 @@ class DwelltimeAnalyzer():
         if len(self.signal) == 0:
             raise ValueError(err_str)
         
-
