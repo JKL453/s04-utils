@@ -27,6 +27,7 @@ Usage:
 
 
 # Import modules
+from itertools import count
 import numpy as np
 import pandas as pd
 from typing import Tuple
@@ -75,12 +76,12 @@ class DwelltimeAnalyzer():
         self.viterbi_path:np.ndarray = np.array([])
         self.last_state_change:int = 0
         self.viterbi_path_fixed:np.ndarray = np.array([])
-        self.viterbi_path_trimmed:np.ndarray = np.array([])
         self.high_state:int = 0
         self.low_state:int = 0
         self.high_state_count:int = 0
         self.low_state_count:int = 0
-        self.dwelltimes:dict[np.ndarray, np.ndarray] = {}
+        self.dwelltimes:dict[str, np.ndarray] = {}
+        self.survival_time:int = 0
         
 
 
@@ -101,7 +102,9 @@ class DwelltimeAnalyzer():
 
 
     
-    def analyze(self, analysis_method:str='sfHMM', detector_selection:str='auto'):
+    def analyze(self, analysis_method:str='sfHMM', 
+                detector_selection:str='auto', 
+                plot:bool=False):
         '''
         Analyze the binned timestamps data.
 
@@ -115,17 +118,30 @@ class DwelltimeAnalyzer():
         Returns:
             None
         '''
-        # Set the analysis method
-        self.set_analysis_method(analysis_method)
 
         # Set the detector
         self.set_detector(detector_selection)
 
+        # Set the analysis method
+        self.set_analysis_method(analysis_method)
+
+        # Get the last state change
+        self.get_last_state_change()
+
+        # Get the optimal number of states
+        self.get_opt_num_states()
+
+        # Trim the signal
+        self.trim_signal()
+
         # Fit the sfHMM model
-        self.fit_sfHMM()
+        self.fit_sfHMM(plot=plot)
 
         # Get dwell times
         self.get_dwell_times()
+
+        # Get the survival time
+        self.get_survival_time()
 
         # Rename dwell time states
         self.rename_dwell_time_states()
@@ -278,11 +294,11 @@ class DwelltimeAnalyzer():
         sf = sfHMM1(self.signal, krange=(1, 2), model='p').run_all(plot=False)
 
         # Get the viterbi path
-        viterbi_path = np.array(sf.viterbi)
-        self.viterbi_path_fixed = viterbi_path
+        self.viterbi_path_fixed = np.array(sf.viterbi)
+        
 
         # Get unique values
-        unique, counts = np.unique(viterbi_path, return_counts=True)
+        unique, counts = np.unique(self.viterbi_path_fixed, return_counts=True)
 
         # Get high and low state
         self.high_state = unique[1]
@@ -292,21 +308,15 @@ class DwelltimeAnalyzer():
         self.low_state_count = counts[0]
 
         # Assign 0 and 1 to the states in viterbi path
-        states = viterbi_path.copy()
-        states[viterbi_path == self.high_state] = 1
-        states[viterbi_path == self.low_state] = 0
+        states = self.viterbi_path_fixed.copy()
+        states[self.viterbi_path_fixed == self.high_state] = 1
+        states[self.viterbi_path_fixed == self.low_state] = 0
 
         # Find indices where the state changes
         value_change = np.where(np.diff(states))[0]
 
         # Get last value change
         self.last_state_change = value_change[-1]
-
-        plt.figure(figsize=(6, 1))
-        plt.plot(self.signal, linewidth=0.5)
-        plt.plot(viterbi_path)
-        plt.axvline(self.last_state_change, color='r')
-        plt.show()
 
 
 
@@ -329,7 +339,7 @@ class DwelltimeAnalyzer():
         
 
 
-    def fit_sfHMM(self, mode:str='fixed', num_states:int=2) -> None:
+    def fit_sfHMM(self, mode:str='fixed', num_states:int=2, plot:bool=False) -> None:
         '''
         Fit a sfHMM model to the signal.
 
@@ -349,9 +359,6 @@ class DwelltimeAnalyzer():
             self.num_states = self.opt_num_states
         else:
             raise ValueError('Invalid mode. Must be "fixed" or "optimal".')
-        
-        # Trim the signal
-        self.trim_signal()
 
         # Fit the 2-state sfHMM model to the signal
         sf = sfHMM1(self.signal_trimmed, krange=(1, self.num_states), model='p').run_all(plot=False)
@@ -359,6 +366,15 @@ class DwelltimeAnalyzer():
 
         # Get the viterbi path
         self.viterbi_path = np.array(sf.viterbi)
+
+        # Plot the results
+        if plot:
+            plt.figure(figsize=(6, 1))
+            plt.plot(self.signal_trimmed, linewidth=0.5)
+            plt.plot(self.viterbi_path_fixed)
+            plt.axvline(self.last_state_change, color='r')
+            plt.show()
+
 
 
     
@@ -384,7 +400,6 @@ class DwelltimeAnalyzer():
 
         # Trim the signal
         self.signal_trimmed = self.signal[start:end]
-        self.viterbi_path_trimmed = self.viterbi_path_fixed[start:end]
 
 
 
@@ -400,20 +415,20 @@ class DwelltimeAnalyzer():
         # Check if signal has been set
         self.check_signal()
 
-        states = self.viterbi_path[:self.last_state_change]
+        states = self.viterbi_path_fixed[:self.last_state_change]
 
         # Count number of data points in each state
         unique, counts = np.unique(states, return_counts=True)
 
         # Check if there is a high and low state
         if len(unique) < 2:
-            return 0
+            return int((counts[0])*2)
 
         counts_low = counts[0]
         counts_high = counts[1]
 
         if counts_low < counts_high:
-            offset = int((counts_high-counts_low)/2)
+            offset = int((counts_high)*2)
         else:
             offset = 10
 
@@ -440,6 +455,12 @@ class DwelltimeAnalyzer():
         # Get unique number of states in sfHMM object
         unique = np.unique(np.array(sf.viterbi))
 
+        plt.plot(sf.viterbi)
+        plt.xlim(20, 50)
+        plt.minorticks_on()
+        plt.grid(which='both')
+        plt.show()
+
         # Initialize dictionary
         dwell_times = {}
     
@@ -451,19 +472,23 @@ class DwelltimeAnalyzer():
             # Find the indices where the signal enters and exits the state
             enter_indices = np.where(np.diff(indices) != 1)[0] + 1
             exit_indices = np.where(np.diff(indices) != 1)[0]
+            print('enter indices:'+str(enter_indices))
+            print('exit indices:'+str(exit_indices))
             
             # Add the first index and the last index
             enter_indices = np.insert(enter_indices, 0, 0)
             exit_indices = np.append(exit_indices, len(indices) - 1)
+            print('enter indices:'+str(enter_indices))
+            print('exit indices:'+str(exit_indices))
 
             # Calculate the dwell times
-            dwell_times[state.astype(int)] = indices[exit_indices] - indices[enter_indices]
+            dwell_times[state.astype(int)] = indices[exit_indices] - indices[enter_indices] + 1
 
         # Check if there is only one state in the viterbi path
         if len(unique) < 2:
             dwell_times['0'] = [0]
 
-        self.dwell_times = dwell_times
+        self.dwelltimes = dwell_times
 
 
     
@@ -478,18 +503,37 @@ class DwelltimeAnalyzer():
         '''
         # Check if dwell times have been calculated
         err_str = 'Dwell times have not been calculated. Use get_dwell_times method to calculate dwell times.'
-        if len(self.dwell_times) == 0:
+        if len(self.dwelltimes) == 0:
             raise ValueError(err_str)
 
         # Get keys from dwell times dictionary
-        keys = list(self.dwell_times.keys())
+        keys = list(self.dwelltimes.keys())
 
         # Rename the keys
         first_key = list(keys)[0]
         second_key = list(keys)[1]
 
-        self.dwell_times['off'] = self.dwell_times.pop(first_key)
-        self.dwell_times['on'] = self.dwell_times.pop(second_key)
+        # Check if the first key is the lower state
+        if first_key < second_key:
+            self.dwelltimes['off'] = self.dwelltimes.pop(first_key)
+            self.dwelltimes['on'] = self.dwelltimes.pop(second_key)
+        else:
+            self.dwelltimes['on'] = self.dwelltimes.pop(first_key)
+            self.dwelltimes['off'] = self.dwelltimes.pop(second_key)
+
+
+
+    def get_survival_time(self):
+        '''
+        Get the survival time.
+
+        Parameters:
+            None
+        Returns:
+            None
+        '''
+        # Get the survival time which is the position of the last state change
+        self.survival_time = self.last_state_change
 
 
 
