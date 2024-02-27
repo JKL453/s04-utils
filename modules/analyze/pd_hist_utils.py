@@ -14,14 +14,11 @@ Usage:
 '''
 
 # Import modules
-from math import log
-from os import major
 from typing import Any, Tuple
-from arrow import get
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import ticker
-from sympy import Function
+from matplotlib.ticker import FuncFormatter
 
 
 
@@ -137,15 +134,12 @@ def get_log_prob(dwell_times:list[int],
     # Get probability densities and bin edges from dwell times
     prob_densities, bins = get_prob(dwell_times, bin_width, method=method)
 
-    #print('prob_densities:', prob_densities)
-    #print('bins:', bins)
-
     if method == 'bin_width':
         # Remove specified value from prob_densities and corresponding bins
         prob_densities, bins = clean_prob_and_bins(prob_densities, bins, bin_width)
 
     # add small offset to bins to avoid log(0)
-    bins[0] = 1
+    bins[0] = 10
 
     # get log values for on_bins and weighted_on_counts
     log_bins = np.log(bins)
@@ -155,9 +149,6 @@ def get_log_prob(dwell_times:list[int],
     log_bins = log_bins[np.isfinite(log_prob_densities)]
     log_prob_densities = log_prob_densities[np.isfinite(log_prob_densities)]
 
-    #print('log_prob_densities:', log_prob_densities)
-    #print('log_bins:', log_bins)
-
     # remove NaN from arrays
     log_bins = log_bins[~np.isnan(log_prob_densities)]
     log_prob_densities = log_prob_densities[~np.isnan(log_prob_densities)]
@@ -165,7 +156,7 @@ def get_log_prob(dwell_times:list[int],
     # Remove zeroes from probabilities and remove corresponding bins
     
     # Set first bin to 0 
-    log_bins[0] = 0
+    #log_bins[0] = 0
 
     return log_prob_densities, log_bins
 
@@ -180,7 +171,7 @@ def get_log_prob(dwell_times:list[int],
 def plot_hist(dwell_times:list[int],
                    bin_width:int=10,
                    title:str='Dwell Time Histogram', 
-                   xlabel:str='Dwell Time (ms)', 
+                   xlabel:str='Dwell Time (s)', 
                    ylabel:str='Counts',
                    ) -> None:
     '''
@@ -219,6 +210,14 @@ def plot_hist(dwell_times:list[int],
     # Set logaritmic scale for y axis
     ax.set_yscale('log')
 
+    # Create formatter
+    formatter = FuncFormatter(format_func)
+
+    # Apply formatter to x axis
+    plt.gca().xaxis.set_major_formatter(formatter)
+
+    plt.minorticks_on()
+
     # Show plot
     plt.show()
 
@@ -228,7 +227,7 @@ def plot_prob(dwell_times:list[int],
                    bin_width:int=10,
                    method:str='neighbour',
                    title:str='Probability Density Plot', 
-                   xlabel:str='Time (ms)', 
+                   xlabel:str='Time (s)', 
                    ylabel:str='Probability Density'
                    ) -> None:
     '''
@@ -272,14 +271,23 @@ def plot_prob(dwell_times:list[int],
     # Set logaritmic scale for y axis
     ax.set_yscale('log')
 
-    # Set minor ticks
+    # Set minor ticks for y axis
     minor_locator = ticker.LogLocator(base=10.0,subs=(0.2,0.4,0.6,0.8),numticks=12)
     ax.yaxis.set_minor_locator(minor_locator)
     ax.yaxis.set_minor_formatter(ticker.NullFormatter())
 
-    # Set major ticks
+    # Set major ticks for y axis
     major_locator = ticker.LogLocator(numticks=12)
     ax.yaxis.set_major_locator(major_locator)
+
+    # Create formatter
+    formatter = FuncFormatter(format_func)
+
+    # Apply formatter to x axis
+    plt.gca().xaxis.set_major_formatter(formatter)
+
+    ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
+
 
     # Show plot
     plt.show()
@@ -290,7 +298,7 @@ def plot_hist_and_prob(dwell_times:list[int],
                     bin_width:int=10,
                     method:str='neighbour',
                     title:str='Probability Density Plot', 
-                    xlabel:str='Time (ms)', 
+                    xlabel:str='Time (s)', 
                     ylabel:list[str]=['Counts', 'Probability Density'],
                     tick_position:str='outside'
                     ) -> None:
@@ -325,6 +333,9 @@ def plot_hist_and_prob(dwell_times:list[int],
     # Plot histogram data
     n_bins = int(np.max(dwell_times)/ bin_width)
     ax[0].hist(dwell_times, bins=n_bins, histtype='stepfilled')
+
+    print(n_bins)
+    print(np.max(dwell_times))
     
     # Set plot title and axis labels
     ax[0].set_title(title)
@@ -350,14 +361,24 @@ def plot_hist_and_prob(dwell_times:list[int],
     #ax[1].set_xscale('log')
     ax[1].set_yscale('log')
     
-    # Set minor ticks
+    # Set minor ticks for y axis
     minor_locator = ticker.LogLocator(base=10.0,subs=(0.2,0.4,0.6,0.8),numticks=12)
     ax[1].yaxis.set_minor_locator(minor_locator)
     ax[1].yaxis.set_minor_formatter(ticker.NullFormatter())
 
-    # Set major ticks
+    # Set major ticks for x axis
     major_locator = ticker.LogLocator(numticks=12)
     ax[1].yaxis.set_major_locator(major_locator)
+
+    # Format x axis labels to seconds
+    formatter = FuncFormatter(format_func)
+
+    # Apply formatter to x axis
+    plt.gca().xaxis.set_major_formatter(formatter)
+
+    # Set minor ticks for x axis
+    ax[0].xaxis.set_minor_locator(ticker.AutoMinorLocator())
+    ax[1].xaxis.set_minor_locator(ticker.AutoMinorLocator())
 
     if tick_position == 'inside':
         for a in ax:
@@ -378,7 +399,7 @@ def plot_power_law_fit(dwell_times:list[int],
                         bin_width:int=10,
                         method:str='neighbour',
                         title:str='Power Law Fit',
-                        xlabel:str='Time (ms)',
+                        xlabel:str='Time (s)',
                         ylabel:str='Probability Density',
                         index_str:str=''
                           ) -> None:
@@ -426,7 +447,7 @@ def plot_power_law_fit(dwell_times:list[int],
         prob_densities, bins = clean_prob_and_bins(prob_densities, bins, bin_width)
 
     # add small offset to log_bins_on and on_bins to avoid log(0)
-    bins[0] = 1
+    bins[0] = 10
 
     # Plot probability density data
     ax.plot(bins, prob_densities, '.')
@@ -543,10 +564,15 @@ def get_distances_to_neighbours(counts:np.ndarray) -> np.ndarray:
 
     for i in range(len(counts)):
         if counts[i] > 0:
+            # Set distance of first value to 1
             if i == 0:
-                distances.append(1.0)
+                distances.append(1)
+            # Set distance of last value to distance to the left
             elif i == len(counts) - 1:
-                distances.append(0)
+                left = 1
+                while counts[i - left] == 0:
+                    left += 1
+                distances.append(left)
             else:
                 # get the distance to the next non-zero value to the left
                 left = 1
@@ -599,3 +625,11 @@ def clean_prob_and_bins(prob_densities:np.ndarray,
     #print('bins_cleaned:', bins_cleaned)
 
     return prob_densities_cleaned, bins_cleaned
+
+
+
+def format_func(value, tick_number):
+    '''
+    Format function for histogram x-axis.
+    '''
+    return int(value / 1000)

@@ -69,6 +69,7 @@ class DwelltimeAnalyzer():
         self.detector_selection:str = ''
         self.detector:str = ''
         self.signal:np.ndarray = np.array([])
+        self.ok_for_sfHMM:bool = True
         self.signal_trimmed:np.ndarray = np.array([])
         self.opt_num_states:int = 0
         self.num_states:int = 0
@@ -128,23 +129,32 @@ class DwelltimeAnalyzer():
         # Get the last state change
         self.get_last_state_change()
 
-        # Get the optimal number of states
-        self.get_opt_num_states()
+        if self.ok_for_sfHMM:
+            # Get the optimal number of states
+            self.get_opt_num_states()
 
-        # Trim the signal
-        self.trim_signal()
+            # Trim the signal
+            self.trim_signal()
 
-        # Fit the sfHMM model
-        self.fit_sfHMM(plot=plot)
+            # Fit the sfHMM model
+            self.fit_sfHMM(plot=plot)
 
-        # Get dwell times
-        self.get_dwell_times()
+            # Get dwell times
+            self.get_dwell_times()
 
-        # Get the survival time
-        self.get_survival_time()
+            # Get the survival time
+            self.get_survival_time()
 
-        # Rename dwell time states
-        self.rename_dwell_time_states()
+            # Rename dwell time states
+            self.rename_dwell_time_states()
+
+        else:
+            self.dwelltimes = {}
+            print('Signal is not suitable for sfHMM analysis.')
+            print('----------------------------------------')
+            print('Dwell times have not been calculated.')
+            print('----------------------------------------')
+            
 
 
 
@@ -299,6 +309,14 @@ class DwelltimeAnalyzer():
 
         # Get unique values
         unique, counts = np.unique(self.viterbi_path_fixed, return_counts=True)
+        print('Unique: ', unique)
+        print('Counts: ', counts)
+
+        # Check if there is a high and low state
+        if len(unique) < 2:
+            unique = np.append(unique, 0)
+            counts = np.append(counts, 0)
+            self.ok_for_sfHMM = False
 
         # Get high and low state
         self.high_state = unique[1]
@@ -316,7 +334,10 @@ class DwelltimeAnalyzer():
         value_change = np.where(np.diff(states))[0]
 
         # Get last value change
-        self.last_state_change = value_change[-1]
+        if len(value_change) == 0:
+            self.last_state_change = 0
+        else:
+            self.last_state_change = value_change[-1]
 
 
 
@@ -348,7 +369,7 @@ class DwelltimeAnalyzer():
         Returns:
             None
         '''
-        # Check if signal has been set
+        # Check if signal has been
         self.check_signal()
 
         # Set the number of states
@@ -373,6 +394,10 @@ class DwelltimeAnalyzer():
             plt.plot(self.signal_trimmed, linewidth=0.5)
             plt.plot(self.viterbi_path_fixed)
             plt.axvline(self.last_state_change, color='r')
+            plt.minorticks_on()
+
+            plt.grid(which='both', linestyle='--', linewidth=0.5)
+            
             plt.show()
 
 
@@ -419,18 +444,25 @@ class DwelltimeAnalyzer():
 
         # Count number of data points in each state
         unique, counts = np.unique(states, return_counts=True)
+        print('Unique: ', unique)
+        print('Counts: ', counts)
 
         # Check if there is a high and low state
-        if len(unique) < 2:
-            return int((counts[0])*2)
-
+        if len(unique) == 0:
+            return 0
+        elif len(unique) < 2:
+            if counts[0] > 100:
+                return int((counts[0])*2)
+            else:
+                return 200
+        
         counts_low = counts[0]
         counts_high = counts[1]
 
         if counts_low < counts_high:
             offset = int((counts_high)*2)
         else:
-            offset = 10
+            offset = 100
 
         return offset
     
@@ -455,12 +487,6 @@ class DwelltimeAnalyzer():
         # Get unique number of states in sfHMM object
         unique = np.unique(np.array(sf.viterbi))
 
-        plt.plot(sf.viterbi)
-        plt.xlim(20, 50)
-        plt.minorticks_on()
-        plt.grid(which='both')
-        plt.show()
-
         # Initialize dictionary
         dwell_times = {}
     
@@ -472,14 +498,10 @@ class DwelltimeAnalyzer():
             # Find the indices where the signal enters and exits the state
             enter_indices = np.where(np.diff(indices) != 1)[0] + 1
             exit_indices = np.where(np.diff(indices) != 1)[0]
-            print('enter indices:'+str(enter_indices))
-            print('exit indices:'+str(exit_indices))
             
             # Add the first index and the last index
             enter_indices = np.insert(enter_indices, 0, 0)
             exit_indices = np.append(exit_indices, len(indices) - 1)
-            print('enter indices:'+str(enter_indices))
-            print('exit indices:'+str(exit_indices))
 
             # Calculate the dwell times
             dwell_times[state.astype(int)] = indices[exit_indices] - indices[enter_indices] + 1
@@ -487,6 +509,11 @@ class DwelltimeAnalyzer():
         # Check if there is only one state in the viterbi path
         if len(unique) < 2:
             dwell_times['0'] = [0]
+
+
+        # Multiply every dwell time by the bin width
+        for key in dwell_times:
+            dwell_times[key] = dwell_times[key] * 10
 
         self.dwelltimes = dwell_times
 
