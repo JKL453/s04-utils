@@ -14,6 +14,8 @@ Usage:
 '''
 
 # Import modules
+from calendar import c
+from math import log
 from typing import Any, Tuple
 import numpy as np
 import matplotlib.pyplot as plt
@@ -55,6 +57,52 @@ def get_hist(dwell_times:list[int],
 
     return counts, bin_edges
 
+
+
+def get_log_hist(dwell_times:list[int], 
+                 number_of_bins:int=20,
+                 density:bool=True
+                ) -> Tuple[np.ndarray, np.ndarray]:
+    '''
+    Create a logarithmic histogram data from list of dwelltimes.
+
+    Parameters
+    ----------
+    dwell_times : list or array of int
+        List or array of dwell times in milliseconds.
+    number_of_bins : int
+        Number of bins for logarithmic histogram.
+    density : bool
+        If True, the result is the value of the probability density function 
+        at the bin, normalized such that the integral over the range is 1.
+
+    Returns
+    -------
+    counts : array
+        Array of histogram counts.
+    bins : array
+        Array of bin edges.
+
+    '''
+    # Create log bins
+    max_value = np.max(dwell_times)
+
+    # Create logarithmic bins
+    log_bins = np.logspace(np.log10(1), np.log10(max_value), number_of_bins)
+
+    # Create histogram data
+    counts, bins = np.histogram(dwell_times, bins=log_bins, density=density)
+
+    # Center bins
+    bins = (bins[1:] + bins[:-1]) / 2
+
+    # Remove zeroes from probabilities
+    counts_cleaned = counts[counts > 0]
+    bins_cleaned = bins[counts > 0] 
+
+    return counts_cleaned, bins_cleaned
+
+        
 
 
 def get_prob(dwell_times:list[int], 
@@ -134,12 +182,12 @@ def get_log_prob(dwell_times:list[int],
     # Get probability densities and bin edges from dwell times
     prob_densities, bins = get_prob(dwell_times, bin_width, method=method)
 
-    if method == 'bin_width':
+    '''if method == 'bin_width':
         # Remove specified value from prob_densities and corresponding bins
-        prob_densities, bins = clean_prob_and_bins(prob_densities, bins, bin_width)
+        prob_densities, bins = clean_prob_and_bins(prob_densities, bins, bin_width)'''
 
     # add small offset to bins to avoid log(0)
-    bins[0] = 10
+    bins[0] = bin_width
 
     # get log values for on_bins and weighted_on_counts
     log_bins = np.log(bins)
@@ -285,9 +333,7 @@ def plot_prob(dwell_times:list[int],
 
     # Apply formatter to x axis
     plt.gca().xaxis.set_major_formatter(formatter)
-
     ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
-
 
     # Show plot
     plt.show()
@@ -429,31 +475,42 @@ def plot_power_law_fit(dwell_times:list[int],
     -------
     None
     '''
-    # Get probability densities and bin edges from dwell times
-    prob_densities, bins = get_prob(dwell_times, bin_width, method=method)
-
-    # Get logarithmic probability densities and bin edges from dwell times
-    log_prob_densities, log_bins = get_log_prob(dwell_times, bin_width, method=method)
-
-    # Fit power law to logarithmic probability density distribution
-    pl_fit_func, coeffs = get_power_law_fit(log_prob_densities, log_bins)
-
     # Create figure for power law fit plot
     _, ax = plt.subplots(1, 1, figsize=(3, 4))
     #ax.set_aspect('equal')
 
-    if method == 'bin_width':
-        # Remove specified value from prob_densities and corresponding bins
-        prob_densities, bins = clean_prob_and_bins(prob_densities, bins, bin_width)
+    if method == 'neighbour':
+        # Get probability densities and bin edges from dwell times
+        prob_densities, bins = get_prob(dwell_times, bin_width, method=method)
 
-    # add small offset to log_bins_on and on_bins to avoid log(0)
-    bins[0] = 10
+        # Get logarithmic probability densities and bin edges from dwell times
+        log_prob_densities, log_bins = get_log_prob(dwell_times, bin_width, method=method)
 
-    # Plot probability density data
-    ax.plot(bins, prob_densities, '.')
+        # Fit power law to logarithmic probability density distribution
+        pl_fit_func, coeffs = get_power_law_fit(log_prob_densities, log_bins, method=method)
 
-    # Plot power law fit
-    ax.loglog(bins, pl_fit_func(bins))
+        # add small offset to log_bins_on and on_bins to avoid log(0)
+        bins[0] = bin_width
+
+        # Plot probability density data
+        ax.plot(bins, prob_densities, '.')
+
+        # Plot power law fit
+        ax.loglog(bins, pl_fit_func(bins))
+
+    elif method == 'bin_width':
+        counts_pdh, bins_pdh = get_log_hist(dwell_times, number_of_bins=bin_width, density=True)
+        fit_func, coeffs = get_power_law_fit(counts_pdh, bins_pdh, method=method)
+
+        # Plot probability density data
+        ax.plot(bins_pdh, counts_pdh, '.')
+
+        # Plot the fitted line
+        log_x_lin_space = coeffs[2:]
+        plt.loglog(np.power(10, log_x_lin_space), np.power(10, fit_func(log_x_lin_space)))
+
+    else:
+        raise ValueError('Invalid method for power law fit.')
 
     # Display the power law exponent in the plot
     tex_label = r'$m_{{{}}}: $'.format(index_str)
@@ -485,7 +542,8 @@ def plot_power_law_fit(dwell_times:list[int],
 
 
 def get_power_law_fit(log_prob_densities:np.ndarray, 
-                      log_bins:np.ndarray
+                      log_bins:np.ndarray,
+                      method:str='neighbour'
                       ) -> Tuple[Any, np.ndarray]:
     '''
     Fit power law to probability density distribution and return fit 
@@ -495,8 +553,10 @@ def get_power_law_fit(log_prob_densities:np.ndarray,
     ----------
     prob_densities : array
         Array of logarithmic probability densities.
+        (non log values for bin width method)
     bins : array
         Array of logarithmic bin edges / x values.
+        (non log values for bin width method)
     
     Returns
     -------
@@ -506,13 +566,34 @@ def get_power_law_fit(log_prob_densities:np.ndarray,
         Coefficients of power law fit.
         coeffs[0] = slope
         coeffs[1] = intercept
+        coeffs[2:] = x values for fit function (when using bin width method)
     '''
-    # Fit power law to probability density distribution
-    coeffs = np.polyfit(log_bins, log_prob_densities, deg=1)
-    poly = np.poly1d(coeffs)
-    fit_func = lambda x: np.exp(poly(np.log(x)))
+    if method == 'neighbour':
+        # Fit power law to probability density distribution
+        coeffs = np.polyfit(log_bins, log_prob_densities, deg=1)
+        poly = np.poly1d(coeffs)
+        fit_func = lambda x: np.exp(poly(np.log(x)))
 
-    return fit_func, coeffs
+        return fit_func, coeffs
+    
+    elif method == 'bin_width':
+        log_bins = np.log10(log_bins)
+        log_counts = np.log10(log_prob_densities)
+
+        # Fit power law to probability density distribution
+        coeffs = np.polyfit(log_bins, log_counts, deg=1)
+        fit_func = np.poly1d(coeffs)
+
+        # Create linear space for x values
+        log_x_lin_space = np.linspace(min(log_bins), max(log_bins), 500)
+
+        # Append linspace to coefficients
+        coeffs = np.append(coeffs, log_x_lin_space)
+
+        return fit_func, coeffs
+    
+    else:
+        raise ValueError('Invalid method for power law fit.')
 
 
 
@@ -566,13 +647,17 @@ def get_distances_to_neighbours(counts:np.ndarray) -> np.ndarray:
         if counts[i] > 0:
             # Set distance of first value to 1
             if i == 0:
-                distances.append(1)
+                right = 1
+                while counts[i + right] == 0:
+                    right += 1
+                distances.append(right/2)
+                print('right:', right)
             # Set distance of last value to distance to the left
             elif i == len(counts) - 1:
                 left = 1
                 while counts[i - left] == 0:
                     left += 1
-                distances.append(left)
+                distances.append(left/2)
             else:
                 # get the distance to the next non-zero value to the left
                 left = 1
