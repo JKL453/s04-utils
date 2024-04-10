@@ -27,7 +27,7 @@ class BinnedTimestamps():
         self.timestamps = Timestamps(path)
         self.data = self.bin_timestamps()
         self.raw = self.timestamps.data
-        self.len_seconds = self.get_length()
+        self.len_seconds = self.get_length() 
 
 
     def bin_timestamps(self) -> dict:

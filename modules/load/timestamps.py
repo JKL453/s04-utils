@@ -29,11 +29,11 @@ import seaborn as sns
 from s04utils.modules.load import h5
 
 # loading function that returns an image class object
-def load_from_path(path):
+def load_from_path(path, load_cursor_pos=False, load_event_dict=False):
     '''
     Loads image data from a binary file and returns an image class object.
     '''
-    return Timestamps(path)
+    return Timestamps(path, load_cursor_pos=False, load_event_dict=False)
 
 
 # ---------------------------------------------------------------------#
@@ -45,7 +45,7 @@ class Timestamps():
     Class for loading and processing timestamps data.
     """
 
-    def __init__(self, path):
+    def __init__(self, path, load_cursor_pos=False, load_event_dict=False):
         """
         Initialize the timestamps class object.
         """
@@ -55,8 +55,20 @@ class Timestamps():
         self.groups = h5.get_group_names(self.h5_content)
         self.timestamps_raw = h5.get_dataset_content(self.h5_content, 'photon_data0', 'timestamps')
         self.detectors_raw = h5.get_dataset_content(self.h5_content, 'photon_data0', 'detectors')
+        self.comment = h5.get_comment_str(self.h5_content)
         self.detector_count, self.detector_number = self.get_detector_count()
         self.data = self.get_timestamps_data()
+
+        if load_cursor_pos:
+            self.cursor_pos = self.get_cursor_pos(self.comment)
+        else:
+            self.cursor_pos = None
+
+        if load_event_dict:
+            self.event_dict = self.get_event_dict(self.comment)
+        else:
+            self.event_dict = None
+    
 
 
     def get_timestamps_data(self):
@@ -205,3 +217,85 @@ class Timestamps():
         output_notebook()
 
         show(p)
+
+
+
+    def get_cursor_pos(self, comment: str) -> dict:
+        """
+        Returns the cursor position in the h5 file.
+        """
+    
+        # Check if comment string is empty
+        if comment == '':
+            return None
+    
+        else:
+            # Parse the comment
+            comment = comment.split('\n')
+
+            # Strip spaces from the comment
+            comment = [line.strip() for line in comment]
+            cursor_pos = comment[1:3]
+    
+            x_pos = cursor_pos[0].split(' ')[-2]
+            y_pos = cursor_pos[1].split(' ')[-2]
+
+            x_pos = float(x_pos.replace(',', '.'))
+            y_pos = float(y_pos.replace(',', '.'))
+    
+            return {'x_pos': x_pos, 'y_pos': y_pos}
+
+
+
+    def get_event_dict(self, comment: str) -> dict:
+        """
+        Returns a dictionary containing event information parsed from the given comment.
+
+        Args:
+            comment (str): The comment string containing event information.
+        Returns:
+            dict: A dictionary containing event information.
+        """
+        if comment == '':
+            return None
+        else:
+            event_dict = self.parse_comment(comment)
+            event_list = self.create_event_list(event_dict)
+            event_keys = self.get_event_keys(event_list)
+            event_dict = self.create_event_dict(event_keys, event_list)
+            start_time, end_time = self.calculate_time_difference(event_dict)
+            return event_dict
+
+    def parse_comment(self, comment: str) -> list:
+        comment = comment.split('\n')
+        comment = [line.strip() for line in comment]
+        return comment[1:]
+
+    def create_event_list(self, event_dict: list) -> list:
+        event_list = [event.split(':') for event in event_dict]
+        event_list = event_list[3:-1]
+        return event_list
+    
+    def get_event_keys(self, event_list: list) -> list:
+        event_keys = []
+        for item in event_list:
+            if item[1].strip() not in event_keys:
+                event_keys.append(item[1].strip())
+        return event_keys
+    
+    def create_event_dict(self, event_keys: list, event_list: list) -> dict:
+        event_dict = {key: list() for key in event_keys}
+        for item in event_list:
+            key = item[1].strip()
+            value = item[0]
+            time_str = value.replace(',', '.')
+            time_float = float(time_str)
+            event_dict[key].append(time_float)
+        return event_dict
+    
+    def calculate_time_difference(self, event_dict: dict) -> tuple:
+        start_time = event_dict['measurementStart'][0]
+        end_time = event_dict['measurementStop'][0]
+        for key in event_dict:
+            event_dict[key] = [round(time - start_time, 2) for time in event_dict[key]]
+        return start_time, end_time

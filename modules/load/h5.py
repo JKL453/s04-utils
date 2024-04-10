@@ -57,3 +57,14 @@ def print_h5_overview(h5_file: h5py.File) -> None:
         for dataset in get_dataset_names(group):
             print('\t', dataset)
         print()
+
+
+
+def get_comment_str(h5_file: h5py.File) -> str:
+    """
+    Returns the cursor position in the h5 file.
+    """
+
+    comment_str = h5_file['comment'][()].decode('utf-8')
+
+    return comment_str
