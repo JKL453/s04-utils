@@ -68,6 +68,10 @@ class Timestamps():
             self.event_dict = self.get_event_dict(self.comment)
         else:
             self.event_dict = None
+
+
+    def __repr__(self):
+        return f'Timestamps object with {len(self.data)} datasets.'
     
 
 

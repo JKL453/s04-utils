@@ -22,9 +22,14 @@ from matplotlib.patches import Circle
 from skimage.feature import blob_log, blob_dog, blob_doh
 from math import sqrt
 from PIL import Image
+import pandas as pd
+import os
+from tabulate import tabulate
 
 # Import modules
 from s04utils.modules.load import image
+
+from charset_normalizer import detect
 
 
 
@@ -70,9 +75,14 @@ class BlobDetector:
             self.image = input_image.data[channel]
         elif isinstance(input_image, np.ndarray):
             self.image = input_image
+
+        self.image_object = input_image
         
         # Check if image is grayscale
-        self.image = img = Image.fromarray(self.image.astype(np.uint8))
+        self.image = Image.fromarray(self.image.astype(np.uint8))
+
+        # Initialize image data path
+        self.image_path = input_image.path
 
         # Save blob type
         self.blob_type = blob_type
@@ -89,6 +99,8 @@ class BlobDetector:
         # Initialize blob statistics dataframe
         self.blob_statistics_df = None
 
+
+
     def detect_blobs(self, min_sigma=3, max_sigma=4, num_sigma=10, threshold=0.01):
         """
         Detect blobs in image using scikit-image blob detection functions.
@@ -101,6 +113,8 @@ class BlobDetector:
             return blob_doh(self.image, min_sigma=min_sigma, max_sigma=max_sigma, num_sigma=num_sigma, threshold=threshold)
         else:
             print('Error: Invalid blob type. Options are "log", "dog", and "doh".')
+
+            
 
     def compare_blob_detection(self, min_sigma=3, max_sigma=4, num_sigma=10, threshold=0.01):
         """
@@ -175,6 +189,8 @@ class BlobDetector:
         plt.tight_layout()
         plt.show()
 
+
+
     def plot_blobs(self, blobs=None, min_sigma=3, max_sigma=4, num_sigma=10, threshold=0.01, vmin=0, figsize=(6,4)):
         """
         Plot blobs on image.
@@ -192,3 +208,126 @@ class BlobDetector:
         fig.colorbar(im, ax=ax, pad=0.01)
         plt.tight_layout()
         plt.show()
+
+
+    def compute_threshold(self):
+        """
+        Compute threshold for blob detection.
+        """
+
+        # Convert image to PIL Image object
+        pil_img = self.image
+
+        # Convert image to grayscale
+        gray_img = pil_img.convert("L")
+
+        # Convert grayscale image back to numpy array
+        gray_arr = np.array(gray_img)
+
+        # Scale values in gray_arr to range from 0 to 255
+        scaled_arr = ((gray_arr - np.min(gray_arr)) / (np.max(gray_arr) - np.min(gray_arr))) * 255
+
+        # Convert scaled_arr to uint8
+        scaled_arr = scaled_arr.astype(np.uint8)
+
+        # calculate threshold for blob detection
+        threshold_mean = np.mean(scaled_arr)
+
+        # Compute normalized threshold
+        normalized_threshold_mean = threshold_mean / 255
+
+        print('Threshold mean: {}'.format(threshold_mean))
+        print('Normalized threshold mean: {}'.format(normalized_threshold_mean*0.1))
+
+        return normalized_threshold_mean*0.1
+    
+
+    def extract_blob_pixels(self, blob_data, image_array):
+        """
+        Extract pixel values for each blob from source image.
+        """
+
+        # Initialize list to store blob pixels
+        blobs = []
+
+        for blob in blob_data:
+            # Get blob coordinates and radius
+            y, x, r = blob
+            
+            # Extract blob pixels from original image
+            blob_pixels = image_array[int(y - r):int(y + r), int(x - r):int(x + r)]
+
+            if blob_pixels.shape[0] == blob_pixels.shape[1]: 
+                blobs.append(blob_pixels)
+            else:
+                pass
+
+            # check blobs for entry with shape (0,0)
+            for i, blob in enumerate(blobs):
+                if blob.shape == (0,0):
+                    print(i)
+                    blobs.pop(i)
+        
+        return blobs
+    
+
+    def analyze_blob_int(self, blobs, verbose=False):
+        """
+        Analyze the average and maximum intensity of each blob.
+        """
+
+       # Create list to store average intensities
+        avg_intensities = []
+        max_intensities = []
+
+        # Loop over blobs and plot in subplots
+        for i, blob in enumerate(blobs):
+            # Calculate average intensity
+            avg_intensity = np.mean(blob)
+
+            # Calculate max intensity
+            max_intensity = np.max(blob)
+
+            avg_intensities.append(avg_intensity)
+            max_intensities.append(max_intensity)
+
+        # Calculate histogram parameters
+        r_avg_intensities = [round(intensity) for intensity in avg_intensities]
+        r_max_intensities = [round(intensity) for intensity in max_intensities]
+
+        if verbose:
+            print('Average intensities:', r_avg_intensities)
+            print('Max intensities:', r_max_intensities)
+
+        return r_avg_intensities, r_max_intensities
+    
+
+    def create_blob_df(self, blobs, avg_int, max_int, verbose=False):
+        """
+        Create a dataframe with blob data.
+        """
+
+        blob_data = []
+        for i, blob in enumerate(blobs):
+            blob_data.append(['blob_{}'.format(i+1), avg_int[i], max_int[i]])
+
+
+        # Convert blob_data to a dataframe
+        blob_dataframe = pd.DataFrame(blob_data)
+
+        # Set the column names
+        blob_dataframe.columns = ['ID', 'Avg. intensity', 'Max. intensity']
+
+        # Add a column that contains the file name for each blob (i.e. the file name of the image that was analyzed)
+        blob_dataframe['File'] = os.path.basename(self.image_path)
+
+        # Make 'File' the first column
+        cols = blob_dataframe.columns.tolist()
+        cols = cols[-1:] + cols[:-1]
+        blob_dataframe = blob_dataframe[cols]
+
+        if verbose:
+            # Print the table using the tabulate function
+            print(tabulate(blob_data, headers=['ID', 'Avg.\nintensity', 'Max.\nintensity'], tablefmt='rst'))
+
+        return blob_dataframe
