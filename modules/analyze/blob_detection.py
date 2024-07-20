@@ -28,7 +28,6 @@ from tabulate import tabulate
 
 # Import modules
 from s04utils.modules.load import image
-
 from charset_normalizer import detect
 
 

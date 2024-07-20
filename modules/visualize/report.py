@@ -28,7 +28,6 @@ from s04utils.modules.load import Timestamps
 from s04utils.modules.visualize import plot
 
 from tqdm import tqdm
-from ipyfilechooser import FileChooser
 
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas

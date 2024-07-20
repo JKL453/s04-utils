@@ -14,7 +14,6 @@ Usage:
 '''
 
 # Import modules
-from calendar import c
 from math import log
 from typing import Any, Tuple
 import numpy as np
