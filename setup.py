@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='s04utils',
-    version='0.1.7',
+    version='0.1.8',
     author='Janosch Kappel',
     author_email='jkl453@posteo.de',
     description='A module to load and analyze timestamp data from HDF5-photon files',
@@ -15,6 +15,7 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
     ],
+    dependency_links = ['https://github.com/JKL453/sfHMM.git@main#egg=sfHMM'],
     python_requires='>=3.6',
     install_requires=[
         'h5py',
@@ -25,7 +26,7 @@ setup(
         'scikit-image',
         'pillow',
         'tabulate',
-        'sfHMM @ git+https://github.com/JKL453/sfHMM.git@main#egg=sfHMM',
+        'sfHMM',
         'bokeh',
         'pybaselines',
         'scipy',
