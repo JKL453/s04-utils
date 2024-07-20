@@ -2,15 +2,14 @@ from setuptools import setup, find_packages
 
 setup(
     name='s04utils',
-    version='0.1.11',
+    version='0.1.12',
     author='Janosch Kappel',
     author_email='jkl453@posteo.de',
     description='A module to load and analyze timestamp data from HDF5-photon files',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     url='https://github.com/JKL453/s04-utils', 
-    packages=find_packages(where='src'),
-    package_dir={'': 'src'},
+    packages=find_packages(),
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',
