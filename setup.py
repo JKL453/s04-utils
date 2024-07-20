@@ -9,10 +9,7 @@ setup(
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     url='https://github.com/JKL453/s04-utils', 
-    packages=['s04utils.modules', 
-              's04utils.modules.load', 
-              's04utils.modules.analyze', 
-              's04utils.modules.visualize'],
+    packages=find_packages(where='modules'),
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',
