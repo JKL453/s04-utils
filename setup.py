@@ -10,7 +10,7 @@ setup(
     long_description_content_type='text/markdown',
     url='https://github.com/JKL453/s04-utils', 
     packages=find_packages(where='src'),
-    package_dir={'': 'src'}
+    package_dir={'': 'src'},
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',
