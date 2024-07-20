@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='s04utils',
-    version='0.1.2',
+    version='0.1.3',
     author='Janosch Kappel',
     author_email='jkl453@posteo.de',
     description='A module to load and analyze timestamp data from HDF5-photon files',
@@ -23,7 +23,7 @@ setup(
         'pandas',
         'matplotlib',
         'scikit-image',
-        'PIL',
+        'pillow',
         'tabulate',
         'itertools',
         'typing',
