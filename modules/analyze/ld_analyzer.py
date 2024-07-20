@@ -21,6 +21,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from s04utils.modules.load.BinnedTimestamps import BinnedTimestamps
 
+import s04utils.modules
+
 
 # ----------------------------------------------------------------------#
 # ---------------- LINEAR DICHROISM ANALYZER CLASS ---------------------#

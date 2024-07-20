@@ -22,7 +22,6 @@ import pandas as pd
 from s04utils.modules.load.BinnedTimestamps import BinnedTimestamps
 
 
-
 # ----------------------------------------------------------------------#
 # ---------------- LINEAR DICHROISM ANALYZER CLASS ---------------------#
 # ----------------------------------------------------------------------#
