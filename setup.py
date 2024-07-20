@@ -22,7 +22,7 @@ setup(
         'scipy',
         'pandas',
         'matplotlib',
-        'skimage',
+        'scikit-image',
         'math',
         'os',
         'PIL',
