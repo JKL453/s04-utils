@@ -25,12 +25,11 @@ setup(
         'scikit-image',
         'pillow',
         'tabulate',
-        'sfHMM',
+        'sfHMM @ git+https://github.com/JKL453/sfHMM.git',
         'bokeh',
         'pybaselines',
         'scipy',
         'seaborn',
-        'pprint',
         'fpdf',
         'tqdm',
         'reportlab'
