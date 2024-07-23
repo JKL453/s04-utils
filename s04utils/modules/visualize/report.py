@@ -199,7 +199,7 @@ def create_pdf(images_path, plot_type='timetrace'):
             # Open the image file using PIL
             image = Image.open(image_path)
             # Resize the image to fit the page
-            image = image.resize((int(image_width), int(image_height)), Image.ANTIALIAS)
+            image = image.resize((int(image_width), int(image_height)), Image.Resampling.LANCZOS)
             # Calculate the position of the image on the page
             x = spacing_x + col * (image_width + spacing_x)
             y = spacing_y + row * (image_height + spacing_y)
