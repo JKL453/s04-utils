@@ -44,9 +44,20 @@ class Timestamps():
     Class for loading and processing timestamps data.
     """
 
-    def __init__(self, path, load_cursor_pos=False, load_event_dict=False):
+    def __init__(self, path=None, data_dict=None, load_cursor_pos=False, load_event_dict=False):
         """
         Initialize the timestamps class object.
+        """
+        if data_dict is not None:
+            self.from_dict(data_dict)
+        elif path is not None:
+            self.from_file(path, load_cursor_pos, load_event_dict)
+        else:
+            raise ValueError("Either path or data_dict must be provided")
+
+    def from_file(self, path, load_cursor_pos, load_event_dict):
+        """
+        Initialize the timestamps class object from a file.
         """
         self.path = path
         self.file_name = self.path.split('/')[-1]
@@ -67,6 +78,23 @@ class Timestamps():
             self.event_dict = self.get_event_dict(self.comment)
         else:
             self.event_dict = None
+
+    def from_dict(self, data_dict):
+        """
+        Initialize the timestamps class object from a dictionary.
+        """
+        self.path = None
+        self.file_name = None
+        self.h5_content = None
+        self.groups = None
+        self.timestamps_raw = None
+        self.detectors_raw = None
+        self.comment = None
+        self.detector_count, self.detector_number = None, None
+        self.data = data_dict
+        self.cursor_pos = None
+        self.event_dict = None
+
 
 
     def __repr__(self):

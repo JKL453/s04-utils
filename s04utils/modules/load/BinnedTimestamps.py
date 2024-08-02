@@ -21,13 +21,55 @@ class BinnedTimestamps():
     Small test class for binned timetrace data.
     '''
 
-    def __init__(self, path:str, bin_width:float=0.01):
-        self.path = path
+    def __init__(self, path:str=None, bin_width:float=0.01, data_dict:dict=None):
+        if data_dict:
+            self.from_dict(data_dict, bin_width)
+        else:
+            self.from_path(path, bin_width)
+
+    def from_dict(self, data_dict, bin_width:float=0.01):
+        """
+        Initialize the BinnedTimestamps class object from a dictionary.
+        """
+        self.path = None
+        self.file_name = None
+        self.h5_content = None
+        self.groups = None
+        self.timestamps_raw = None
+        self.detectors_raw = None
+        self.comment = None
+        self.detector_count, self.detector_number = None, None
+        self.cursor_pos = None
+        self.event_dict = None
         self.bin_width = bin_width
-        self.timestamps = Timestamps(path)
+        self.timestamps = Timestamps(data_dict=data_dict)
         self.data = self.bin_timestamps()
         self.raw = self.timestamps.data
-        self.len_seconds = self.get_length() 
+        self.len_seconds = self.get_length()
+
+    def from_path(self, path:str, bin_width:float=0.01):
+        """
+        Initialize the BinnedTimestamps class object from a file path.
+        """
+        self.path = path
+        self.file_name = self.path.split('/')[-1]
+        self.h5_content = h5.load_h5_file(self.path)
+        self.groups = h5.get_group_names(self.h5_content)
+        self.timestamps_raw = h5.get_dataset_content(self.h5_content, 'photon_data0', 'timestamps')
+        self.detectors_raw = h5.get_dataset_content(self.h5_content, 'photon_data0', 'detectors')
+        self.comment = h5.get_comment_str(self.h5_content)
+        self.detector_count, self.detector_number = self.get_detector_count()
+        self.data = self.get_timestamps_data()
+        self.bin_width = bin_width
+        self.timestamps = Timestamps(path)
+        if load_cursor_pos:
+            self.cursor_pos = self.get_cursor_pos(self.comment)
+        else:
+            self.cursor_pos = Non   
+        if load_event_dict:
+            self.event_dict = self.get_event_dict(self.comment)
+        else:
+            self.event_dict = None
 
 
     def bin_timestamps(self) -> dict:
